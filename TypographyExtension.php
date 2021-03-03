@@ -78,7 +78,6 @@ final class TypographyExtension extends AbstractExtension {
     if (file_exists($this->settings_file_path)) {
       $defaults = (array) Yaml::parse(file_get_contents($this->settings_file_path));
     }
-    dump($defaults);
     return $defaults;
   }
 }
