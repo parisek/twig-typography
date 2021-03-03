@@ -7,7 +7,7 @@
     "require": {
         "php": ">=7.3.0",
         "mundschenk-at/php-typography": "^6.0",
-        "symfony/yaml": "^5.0",
+        "symfony/yaml": "^3.4||^4.2||^5.0",
         "twig/twig": "^2.4|^3.0"
     },
     "autoload": {
