@@ -23,7 +23,7 @@ Uses [PHP-Typography](https://github.com/mundschenk-at/php-typography) library a
 
 ## Installation
 
-Twig Attribute Extension can be easily installed using [composer](http://getcomposer.org/)
+Twig Typography Extension can be easily installed using [composer](http://getcomposer.org/)
 
     composer require parisek/twig-typography
 
@@ -31,7 +31,7 @@ Twig Attribute Extension can be easily installed using [composer](http://getcomp
 
 ```php
 $twig = new Twig_Environment($loader);
-$twig->addExtension(new Parisek\Twig\AttributeExtension(__DIR__ . '/typography.yml'));
+$twig->addExtension(new Parisek\Twig\TypographyExtension(__DIR__ . '/typography.yml'));
 ```
 
 ## Template
