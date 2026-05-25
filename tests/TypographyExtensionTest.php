@@ -23,14 +23,18 @@ final class TypographyExtensionTest extends TestCase
     }
 
     #[Test]
-    public function plain_ascii_string_passes_through_unchanged_when_no_settings(): void
+    public function library_defaults_apply_when_no_constructor_config(): void
     {
-        $extension = new TypographyExtension([]);
+        $extension = new TypographyExtension();
 
-        // use_defaults: false disables PHP-Typography's built-in defaults
-        // (soft-hyphenation, NBSP insertion, etc.) so that an empty config
-        // array truly means "apply nothing".
-        self::assertSame('Hello world.', $extension->applyTypography('Hello world.', [], false));
+        $result = $extension->applyTypography('Hello world.');
+
+        // Library defaults (dewidow inserts NBSP between "Hello" and "world",
+        // English hyphenation seeds soft-hyphens inside "Hello") meaningfully
+        // transform clean input. The inequality verifies Settings(true) is
+        // actually being initialised — a bug that silently skipped library
+        // defaults would otherwise go undetected.
+        self::assertNotSame('Hello world.', $result);
     }
 
     #[Test]

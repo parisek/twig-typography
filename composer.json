@@ -28,11 +28,6 @@
         "test": "vendor/bin/phpunit",
         "phpstan": "vendor/bin/phpstan analyse"
     },
-    "config": {
-        "platform": {
-            "php": "8.3"
-        }
-    },
     "minimum-stability": "stable",
     "prefer-stable": true
 }
