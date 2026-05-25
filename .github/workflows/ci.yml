@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }} / Twig ${{ matrix.twig }} / Symfony ${{ matrix.symfony }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.3', twig: '^3.0',       symfony: '^7.0', stable: true  }
+          - { php: '8.4', twig: '^3.0',       symfony: '^8.0', stable: true  }
+          - { php: '8.4', twig: '^4.0@alpha', symfony: '^8.0', stable: false }
+    continue-on-error: ${{ !matrix.stable }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Pin matrix deps
+        run: |
+          composer require --no-update --dev \
+            "twig/twig:${{ matrix.twig }}" \
+            "symfony/yaml:${{ matrix.symfony }}"
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-progress
+
+      - name: Run tests
+        run: composer test
+
+      - name: Static analysis
+        if: matrix.stable
+        run: composer phpstan
