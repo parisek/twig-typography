@@ -51,11 +51,14 @@ final class TypographyExtension extends AbstractExtension
     /**
      * Apply PHP-Typography to a string.
      *
-     * @param array<string, mixed> $arguments  Per-call setting overrides; merged on top of constructor defaults.
-     * @param bool                 $use_defaults  Initialise PHP-Typography's own sane defaults before applying ours.
+     * @param string|\Stringable    $string        Plain string or any Stringable (Twig\Markup from `|raw`-wrapped HTML, value objects with __toString, …). Cast happens at entry so the rest of the method works on a plain string.
+     * @param array<string, mixed>  $arguments     Per-call setting overrides; merged on top of constructor defaults.
+     * @param bool                  $use_defaults  Initialise PHP-Typography's own sane defaults before applying ours.
      */
-    public function applyTypography(string $string, array $arguments = [], bool $use_defaults = true): string
+    public function applyTypography(string|\Stringable $string, array $arguments = [], bool $use_defaults = true): string
     {
+        $string = (string) $string;
+
         $settings = new Settings($use_defaults);
 
         $merged = array_merge($this->loadDefaults(), $arguments);
