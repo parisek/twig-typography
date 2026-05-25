@@ -8,7 +8,7 @@ glyphs, ordinal suffixes, math symbols, CSS hooks for styling.
 
 - PHP 8.3+
 - Twig 3 or 4
-- Symfony YAML 6, 7, or 8 (used only when loading config from a `.yml` file)
+- Symfony YAML 6, 7, or 8 (always installed as a hard dependency; only invoked at runtime when the constructor receives a `.yml` file path)
 
 ## Installation
 
