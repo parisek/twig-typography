@@ -78,4 +78,52 @@ final class TypographyExtensionTest extends TestCase
             'array config should produce the same output as the equivalent YAML config',
         );
     }
+
+    #[Test]
+    public function missing_yaml_path_falls_back_silently_to_library_defaults(): void
+    {
+        $missing = new TypographyExtension('/path/that/does/not/exist.yml');
+        $emptyConfig = new TypographyExtension([]);
+
+        // Both constructors resolve to an empty settings array inside loadDefaults
+        // (bogus path → is_file false → []; empty array → array branch → []), then
+        // Settings(true) library defaults apply to both. The two outputs must match
+        // byte-for-byte — that's the "silent fallback" contract: a missing file is
+        // indistinguishable from no config at all.
+        $input = 'She said "hi".';
+
+        self::assertSame(
+            $emptyConfig->applyTypography($input),
+            $missing->applyTypography($input),
+            'missing file path should produce identical output to empty-array config',
+        );
+    }
+
+    #[Test]
+    public function per_call_arguments_override_constructor_defaults(): void
+    {
+        $extension = new TypographyExtension([
+            'set_smart_quotes' => true,
+            'set_smart_quotes_primary' => 'doubleLow9',
+        ]);
+
+        $defaultResult = $extension->applyTypography('"x"');
+        $overriddenResult = $extension->applyTypography('"x"', ['set_smart_quotes' => false]);
+
+        self::assertStringContainsString('„', $defaultResult);
+        self::assertStringNotContainsString('„', $overriddenResult);
+        self::assertStringContainsString('"', $overriddenResult);
+    }
+
+    #[Test]
+    public function use_defaults_false_skips_library_defaults(): void
+    {
+        $extension = new TypographyExtension([]);
+
+        // With $use_defaults=false and an empty config, no settings are configured at all
+        // — straight quotes survive.
+        $result = $extension->applyTypography('"x"', [], false);
+
+        self::assertSame('"x"', $result);
+    }
 }
