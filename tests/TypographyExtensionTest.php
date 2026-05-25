@@ -47,4 +47,35 @@ final class TypographyExtensionTest extends TestCase
         self::assertStringContainsString('"', $result);
         self::assertStringNotContainsString('"hello"', $result);
     }
+
+    #[Test]
+    public function yaml_config_path_is_loaded_and_applied(): void
+    {
+        $extension = new TypographyExtension(__DIR__ . '/fixtures/cs.yml');
+
+        $result = $extension->applyTypography('He said "hello".');
+
+        self::assertStringContainsString('„', $result);
+        self::assertStringContainsString('"', $result);
+        self::assertStringNotContainsString('"hello"', $result);
+    }
+
+    #[Test]
+    public function array_config_is_applied_without_filesystem(): void
+    {
+        $arrayExt = new TypographyExtension([
+            'set_smart_quotes' => true,
+            'set_smart_quotes_primary' => 'doubleLow9',
+            'set_diacritic_language' => 'cs',
+        ]);
+        $yamlExt = new TypographyExtension(__DIR__ . '/fixtures/cs.yml');
+
+        $input = 'She said "hi".';
+
+        self::assertSame(
+            $yamlExt->applyTypography($input),
+            $arrayExt->applyTypography($input),
+            'array config should produce the same output as the equivalent YAML config',
+        );
+    }
 }
