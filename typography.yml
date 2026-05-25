@@ -1,7 +1,12 @@
-set_hyphenation: FALSE
-set_url_wrap: FALSE
-set_email_wrap: FALSE
-set_style_numbers: FALSE
-set_smart_fractions: FALSE
-set_diacritic_language: "cs"
-set_space_collapse: FALSE
+# parisek/twig-typography — bundled settings marker
+#
+# This file ships intentionally empty. When the extension is constructed
+# without arguments, this path is loaded — an empty parse resolves to
+# `[]`, which means PHP-Typography's own `Settings(true)` defaults apply
+# unmodified.
+#
+# To override defaults, pass either:
+#   - a YAML file path:    new TypographyExtension('/path/to/your.yml')
+#   - a PHP settings array: new TypographyExtension(['set_smart_quotes' => true])
+#
+# See README.md for a Czech (cs-CZ) configuration sample.
