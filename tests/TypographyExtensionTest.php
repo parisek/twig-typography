@@ -19,7 +19,10 @@ final class TypographyExtensionTest extends TestCase
         self::assertCount(1, $filters);
         self::assertInstanceOf(TwigFilter::class, $filters[0]);
         self::assertSame('typography', $filters[0]->getName());
-        self::assertSame(['html'], $filters[0]->getSafe(new \Twig\Node\Node()));
+        // EmptyNode is concrete in Twig 3 and Twig 4; Twig 4 makes Node itself
+        // abstract, so direct `new Node()` (legal in Twig 3) errors there. Static
+        // `is_safe` returns the same array regardless of the node argument.
+        self::assertSame(['html'], $filters[0]->getSafe(new \Twig\Node\EmptyNode()));
     }
 
     #[Test]
