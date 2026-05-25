@@ -1,0 +1,5 @@
+# Test fixture — Czech smart-quote configuration used by
+# TypographyExtensionTest::yaml_config_path_is_loaded_and_applied.
+set_diacritic_language: "cs"
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleLow9"
