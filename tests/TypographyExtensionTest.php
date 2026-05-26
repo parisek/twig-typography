@@ -135,6 +135,22 @@ final class TypographyExtensionTest extends TestCase
     }
 
     #[Test]
+    public function null_input_returns_empty_string_without_type_error(): void
+    {
+        $extension = new TypographyExtension();
+
+        // Optional ACF fields (link.title on an empty link, repeater rows the editor
+        // left blank, …) routinely pipe `null` into `|typography` from templates that
+        // don't guard with `{% if value %}`. Pre-1.2 the filter coerced null → '' for
+        // free; the strict-typed 1.2 signature broke that on PHP 8 with a TypeError
+        // that surfaces as a 500 on the live site. Accepting null and short-circuiting
+        // to '' mirrors how built-in Twig filters (`|trim`, `|lower`, `|escape`) behave.
+        $result = $extension->applyTypography(null);
+
+        self::assertSame('', $result);
+    }
+
+    #[Test]
     public function stringable_input_is_accepted_without_type_error(): void
     {
         $extension = new TypographyExtension([
