@@ -51,7 +51,7 @@ final class TypographyExtension extends AbstractExtension
     /**
      * Apply PHP-Typography to a string.
      *
-     * @param string|\Stringable|null $string       Plain string, any Stringable (Twig\Markup from `|raw`-wrapped HTML, value objects with __toString, …), or null. Null short-circuits to '' so optional/unfilled template fields (`{{ content.button.title|typography }}` against an empty ACF link) don't fatal under strict types — matches the null-tolerance convention of built-in Twig filters like `|trim`, `|lower`, `|escape`. Cast happens at entry so the rest of the method works on a plain string.
+     * @param string|\Stringable|null $string       Plain string, any Stringable (Twig\Markup from `|raw`-wrapped HTML, value objects with __toString, …), or null. Null short-circuits to '' so optional/unfilled template fields (`{{ content.button.title|typography }}` against an empty ACF link) don't fatal under strict types — matches the null-tolerance convention of built-in Twig filters like `|trim`, `|lower`, `|escape`. For non-null inputs, the cast happens at entry so the rest of the method works on a plain string.
      * @param array<string, mixed>    $arguments    Per-call setting overrides; merged on top of constructor defaults.
      * @param bool                    $use_defaults Initialise PHP-Typography's own sane defaults before applying ours.
      */
