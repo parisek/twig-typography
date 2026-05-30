@@ -70,7 +70,25 @@ final class TypographyExtension extends AbstractExtension
             $settings->{$setting}($value);
         }
 
-        return (new PHP_Typography())->process($string, $settings);
+        // mundschenk-at/php-typography's latest release is v6.7.0 (Nov 2022),
+        // predating PHP 8.4. Its method signatures still use implicitly-nullable
+        // parameters (e.g. `callable $handler = null`), which PHP 8.4+ deprecates.
+        // With display_errors on, those E_DEPRECATED notices are written straight
+        // into the output stream and corrupt the rendered HTML. Suppress only
+        // E_DEPRECATED for the duration of the upstream call, then restore the
+        // previous level so genuine errors elsewhere are unaffected.
+        //
+        // This is purely a stopgap for the unmaintained 2022 dependency — drop it
+        // once php-typography ships the nullable type-hint fix and we bump to it:
+        // https://github.com/mundschenk-at/php-typography/pull/189
+        $previousErrorReporting = error_reporting();
+        error_reporting($previousErrorReporting & ~E_DEPRECATED);
+
+        try {
+            return (new PHP_Typography())->process($string, $settings);
+        } finally {
+            error_reporting($previousErrorReporting);
+        }
     }
 
     /**

@@ -6,6 +6,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-05-30
+
+### Fixed
+
+- Suppress `E_DEPRECATED` around the `mundschenk-at/php-typography` `process()`
+  call. The upstream library's latest release (v6.7.0, Nov 2022) predates PHP
+  8.4 and uses implicitly-nullable parameter signatures that 8.4+ deprecates;
+  with `display_errors` on, those notices were written into the rendered output
+  and corrupted the HTML. The suppression is scoped to the single upstream call
+  and restores the previous `error_reporting()` level afterwards, so genuine
+  errors are unaffected. Stopgap until php-typography ships the type-hint fix
+  ([php-typography#189](https://github.com/mundschenk-at/php-typography/pull/189)).
+
 ## [1.2.0] - 2026-05-25
 
 ### Added
