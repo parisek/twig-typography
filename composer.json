@@ -1,7 +1,10 @@
 {
     "name": "parisek/twig-typography",
     "description": "A Twig extension with typography filter",
-    "keywords": ["twig", "typography"],
+    "keywords": [
+        "twig",
+        "typography"
+    ],
     "homepage": "https://github.com/parisek/twig-typography",
     "license": "GPL-2.0-or-later",
     "require": {
@@ -37,9 +40,6 @@
     "config": {
         "allow-plugins": {
             "ergebnis/composer-normalize": true
-        },
-        "platform": {
-            "php": "8.3.0"
         }
     }
 }
