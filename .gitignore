@@ -3,3 +3,4 @@
 /.phpunit.cache/
 /.phpstan-cache/
 .DS_Store
+.php-cs-fixer.cache

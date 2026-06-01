@@ -30,7 +30,11 @@ PHP ^8.3. Twig ^3.0 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI).
 ```bash
 composer install
 composer test           # phpunit
-composer phpstan        # vendor/bin/phpstan analyse — level 8
+composer phpstan        # static analysis — level 8
+composer cs             # php-cs-fixer dry-run (PER-CS)
+composer cs:fix         # apply code style
+composer normalize      # tidy composer.json
+composer audit          # dependency advisory scan
 composer validate --strict
 ```
 
