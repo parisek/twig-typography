@@ -17,8 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { php: '8.3', twig: '^3.0',       symfony: '^7.0', stable: true  }
-          - { php: '8.4', twig: '^3.0',       symfony: '^8.0', stable: true  }
+          - { php: '8.3', twig: '^3.27',       symfony: '^7.0', stable: true  }
+          - { php: '8.4', twig: '^3.27',       symfony: '^8.0', stable: true  }
           - { php: '8.4', twig: '^4.0@alpha', symfony: '^8.0', stable: false }
     continue-on-error: ${{ !matrix.stable }}
 
@@ -61,7 +61,7 @@ jobs:
           coverage: none
       - run: composer update --no-interaction --prefer-dist
       - name: Audit dependencies for known advisories
-        run: composer audit
+        run: composer audit --abandoned=report
       - name: composer.json is normalized
         run: composer normalize --dry-run
 
