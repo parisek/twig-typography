@@ -1,19 +1,26 @@
 {
     "name": "parisek/twig-typography",
     "description": "A Twig extension with typography filter",
-    "keywords": ["twig", "typography"],
-    "homepage": "https://github.com/parisek/twig-typography",
     "license": "GPL-2.0-or-later",
+    "keywords": [
+        "twig",
+        "typography"
+    ],
+    "homepage": "https://github.com/parisek/twig-typography",
     "require": {
         "php": "^8.3",
         "mundschenk-at/php-typography": "^6.0",
         "symfony/yaml": "^6.0 || ^7.0 || ^8.0",
-        "twig/twig": "^3.0 || ^4.0"
+        "twig/twig": "^3.27 || ^4.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^11.0 || ^12.0",
-        "phpstan/phpstan": "^2.0"
+        "ergebnis/composer-normalize": "^2.0",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0 || ^12.0"
     },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Parisek\\Twig\\": "src/"
@@ -24,10 +31,15 @@
             "Parisek\\Twig\\Tests\\": "tests/"
         }
     },
-    "scripts": {
-        "test": "vendor/bin/phpunit",
-        "phpstan": "vendor/bin/phpstan analyse"
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
+        }
     },
-    "minimum-stability": "stable",
-    "prefer-stable": true
+    "scripts": {
+        "cs": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "phpstan": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/phpunit"
+    }
 }

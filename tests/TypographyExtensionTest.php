@@ -163,9 +163,12 @@ final class TypographyExtensionTest extends TestCase
         // would reject those under `declare(strict_types=1)` without the
         // `string|\Stringable` union — this anonymous-class proxy stands in for
         // every such object and confirms the BC contract holds.
-        $markup = new class('He said "hello".') implements \Stringable {
+        $markup = new class ('He said "hello".') implements \Stringable {
             public function __construct(private readonly string $value) {}
-            public function __toString(): string { return $this->value; }
+            public function __toString(): string
+            {
+                return $this->value;
+            }
         };
 
         $result = $extension->applyTypography($markup);
