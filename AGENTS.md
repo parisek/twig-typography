@@ -54,16 +54,15 @@ PHPStan only runs on the stable jobs (`if: matrix.stable`) — the alpha job's p
 - **Squash-merge PRs** into `main` so the merge commit subject ends with `(#N)`. The tag history (`v1.0`, `v1.0.1`–`v1.2.0`) is built on this convention.
 - Default branch is `main`, not `master`.
 
-## Release process
+## Release process — DO NOT bypass
 
-Currently manual:
+Automated by two workflows (mirrors `parisek/timber-kit`). **Never stamp + tag manually** unless the workflow is broken:
 
-1. Stamp the `[Unreleased]` heading in `CHANGELOG.md` to `[X.Y.Z] - YYYY-MM-DD`.
-2. `git tag -a vX.Y.Z -m "..."` + `git push origin vX.Y.Z`.
-3. Packagist auto-imports (~60s; webhook wired).
-4. Create the GitHub Release (`gh release create vX.Y.Z --notes-file …`) — v1.2.0 already in place as the model.
+1. Trigger **Stamp Release** (Actions tab → `Stamp Release` → Run workflow → enter `X.Y.Z`, no `v` prefix).
+2. It validates the version, requires a non-empty `[Unreleased]`, runs `composer test` + `composer phpstan` as guards, stamps `[Unreleased]` → `[X.Y.Z] - DATE` (UTC, leaving a fresh empty `[Unreleased]`), commits `Release X.Y.Z`, tags `vX.Y.Z`, pushes, then dispatches `release.yml`.
+3. `release.yml` extracts that tag's CHANGELOG section + the merged-PR list and creates the GitHub Release. Packagist auto-imports the tag (~60s; webhook wired).
 
-If a release-automation workflow lands, mirror `parisek/timber-kit`'s `release-stamp.yml` + `release.yml` shape.
+`release.yml` also runs on a manual `vX.Y.Z` tag push and via `workflow_dispatch` (re-generate notes for an existing tag).
 
 ## PHPStan level
 
