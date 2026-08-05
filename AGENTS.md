@@ -19,8 +19,8 @@ A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
 - `typography.yml` — bundled marker file. Empty by design since 1.2.0 — library `Settings(true)` defaults apply unless the consumer passes a YAML path or PHP array to the constructor.
 - `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php` + `tests/fixtures/` (sample configs).
-- `.github/workflows/tests.yml` + `dependency-review.yml` + `commitlint.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
-- `docs/adr/` is the one thing kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/` (planning scratch is local-only; ADRs are worth keeping). `.gitattributes` excludes `/docs` from the published Composer archive either way.
+- `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
+- `docs/adr/` may be kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/`. `.gitattributes` excludes `/docs` from the published Composer archive either way.
 
 Constructor accepts three shapes: `''` (library defaults), `'/path/to.yml'` (filesystem YAML), `[]` (PHP array, no filesystem I/O). Missing path falls back silently to library defaults — `parisek/styleguide` relies on this when `typography_config` resolves to a not-yet-created project file.
 
@@ -54,8 +54,8 @@ The `test` job in `.github/workflows/tests.yml` runs a 3-leg PHP/Twig/Symfony ma
 
 | PHP | Twig | Symfony | Required |
 |---|---|---|---|
-| 8.3 | ^3.0 | ^7.0 | yes |
-| 8.4 | ^3.0 | ^8.0 | yes |
+| 8.3 | ^3.27 | ^7.0 | yes |
+| 8.4 | ^3.27 | ^8.0 | yes |
 | 8.4 | ^4.0@alpha | ^8.0 | **signal-only** (`continue-on-error: true`) |
 
 The Twig 4 alpha job exists to catch upstream breaks early. Don't promote it to required until Twig 4 stable lands.
@@ -65,7 +65,7 @@ PHPStan only runs on the stable jobs (`if: matrix.stable`) — the alpha job's p
 ## Per-PR conventions
 
 - **CHANGELOG.md**: every behavior-affecting PR adds an entry under `## [Unreleased]` with [Keep a Changelog](https://keepachangelog.com/) categories.
-- **Squash-merge PRs** into `main` so the merge commit subject ends with `(#N)`. The tag history (`v1.0`, `v1.0.1`–`v1.2.0`) is built on this convention. `allow_merge_commit`/`allow_rebase_merge` are disabled repo-wide, `squash_merge_commit_title: PR_TITLE` — the PR title mechanically becomes the commit subject on `main`.
+- **Squash-merge PRs** into `main` so the merge commit subject ends with `(#N)`. `allow_merge_commit`/`allow_rebase_merge` are disabled repo-wide, `squash_merge_commit_title: PR_TITLE` — the PR title mechanically becomes the commit subject on `main`.
 - **PR title must be a Conventional Commit** (`commitlint.yml`, `amannn/action-semantic-pull-request`): one of `feat fix docs chore ci test refactor qa`, scope optional/freeform.
 - Default branch is `main`, not `master`.
 
@@ -81,7 +81,7 @@ Automated by two workflows (mirrors `parisek/timber-kit`). **Never stamp + tag m
 
 ## PHPStan level
 
-Level 8 (max). The package is small enough — ~95 LOC of production code — that level 8 stays clean without effort. Don't dial down; if a real type-shape problem appears, fix the code, not the level.
+Level 8 (max). The package is small enough that level 8 stays clean without effort. Don't dial down; if a real type-shape problem appears, fix the code, not the level.
 
 `tests/fixtures/*` is excluded (PHPStan would otherwise complain about fixture YAML-as-PHP shenanigans).
 
