@@ -29,12 +29,19 @@ PHP ^8.3. Twig ^3.0 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI).
 
 ```bash
 composer install
-composer test           # phpunit
-composer phpstan        # static analysis — level 8
-composer cs             # php-cs-fixer dry-run (PER-CS)
-composer cs:fix         # apply code style
-composer normalize      # tidy composer.json
-composer audit          # dependency advisory scan
+composer check           # the full local gate: cs, test, phpstan — run this before opening a PR
+```
+
+Granular scripts, in case you need just one:
+
+```bash
+composer test            # phpunit
+composer phpstan         # static analysis — level 8
+composer cs              # php-cs-fixer dry-run (PER-CS)
+composer cs:fix          # apply code style
+composer normalize       # tidy composer.json
+composer normalize:check # composer.json normalization, check-only (what CI runs)
+composer audit           # dependency advisory scan
 composer validate --strict
 ```
 
