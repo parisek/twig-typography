@@ -21,16 +21,19 @@ differ from the house policy.
 Regional tags (`de-CH`, `en-GB`, `<language>-<REGION>`) sit inside the same
 `languages:` map and raise the same question one level down: should
 `en-GB`'s entry restate everything `en` already says, or only its own
-delta? The layering answer was implemented, then a real defect showed the
-first version of the resolution logic didn't actually deliver it.
-`TypographyExtension::resolveLanguageSettings()` walks the locale's
-candidate tags (most-specific first, e.g. `['en-GB', 'en']`) and originally
-took the *first* matching entry and stopped — the classic "first match
-wins" fallback-chain shape. Under that logic, as soon as `en-GB` existed at
-all, `en`'s own settings were never consulted for an `en_GB` render: `en-GB`
-silently lost `en`'s `set_smart_ordinal_suffix`, a difference nobody chose
-and nothing signalled. The regional entry wasn't additive in practice even
-though the documentation and intent said it was.
+delta? The layering answer was the intent from the start, but during
+development of the per-language feature (PR #8, before it was squash-merged
+to `main`) an intermediate version of the resolution logic didn't actually
+deliver it. `TypographyExtension::resolveLanguageSettings()` walks the
+locale's candidate tags (most-specific first, e.g. `['en-GB', 'en']`), and
+that version took the *first* matching entry and stopped — the classic
+"first match wins" fallback-chain shape. Under that logic, as soon as
+`en-GB` existed at all, `en`'s own settings were never consulted for an
+`en_GB` render: `en-GB` would have silently lost `en`'s
+`set_smart_ordinal_suffix`, a difference nobody chose and nothing
+signalled. The regional entry wasn't additive under that logic even though
+the documentation and intent said it was — caught and fixed before the
+branch merged, so no released version ever shipped it.
 
 ## Decision
 
@@ -55,11 +58,12 @@ genuinely differ from its base language.
   region, not what's visible in its own five or six lines. Understanding
   what `de-CH` actually does requires reading `de` and the global section
   alongside it — there is no single place that shows the resolved value.
-- The "first match wins" version was live logic, not a discarded draft — it
-  shipped the exact `en-GB`-loses-`en`'s-ordinal-suffix bug described above
-  before being replaced by the fold. Anyone re-deriving this resolution
-  order from scratch should expect to re-discover the same failure mode; it
-  is not hypothetical.
+- The "first match wins" shape produced the exact `en-GB`-loses-`en`'s-
+  ordinal-suffix bug described above during development, before being
+  replaced by the fold and before any release shipped it. Anyone
+  re-deriving this resolution order from scratch should expect to
+  re-discover the same failure mode; it is not hypothetical, just never
+  released.
 - Guard: `tests/SettingsLoaderTest.php` and `tests/LanguageTableTest.php`
   cover the merge order, including a regional-over-base case exercising
   exactly the scenario the first implementation got wrong.

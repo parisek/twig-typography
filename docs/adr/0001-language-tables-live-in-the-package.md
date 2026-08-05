@@ -29,13 +29,17 @@ itself required it once already.
 ## Decision
 
 Language tables are bundled inside `parisek/twig-typography` itself, in the
-shipped `typography.yml`'s `languages:` map, and applied on every render
-regardless of what a consuming project passes. `SettingsLoader::global()`
-and `SettingsLoader::language()` read this bundled file from
+shipped `typography.yml`'s `languages:` map. `SettingsLoader::global()` and
+`SettingsLoader::language()` read this bundled file from
 `SettingsLoader::packagePath()`, layered beneath a project's own `$config`
 in `TypographyExtension::applyTypography()`'s merge order (package global →
 package language → project global → project language → per-call
-arguments).
+arguments). The two layers are not applied under the same conditions: the
+package *global* section applies on every render, resolver or not. The
+*language* layer only applies when the host wires a `$locale_resolver` —
+`resolveLanguageSettings()` returns `[]` without one, so a render with no
+resolver gets the house policy's language-neutral defaults, not any
+specific language's table.
 
 A project cannot override a single language wholesale by omission — it gets
 the package's per-language table for every locale it doesn't explicitly
