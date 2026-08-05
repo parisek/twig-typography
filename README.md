@@ -32,18 +32,29 @@ use Twig\Loader\FilesystemLoader;
 
 $twig = new Environment(new FilesystemLoader('/path/to/templates'));
 
-// Library defaults — sane English settings.
+// House policy only — no per-language typesetting.
 $twig->addExtension(new TypographyExtension());
 
-// — or — load settings from a YAML file:
-$twig->addExtension(new TypographyExtension(__DIR__ . '/typography.yml'));
+// — or — house policy + per-language typesetting, resolved fresh on every call:
+$twig->addExtension(new TypographyExtension('', fn () => $currentLocale));
 
-// — or — pass settings as a PHP array (no filesystem):
+// — or — layer a project settings file on top:
+$twig->addExtension(new TypographyExtension(__DIR__ . '/typography.yml', fn () => $currentLocale));
+
+// — or — layer a PHP array on top instead (no filesystem):
 $twig->addExtension(new TypographyExtension([
     'set_smart_quotes' => true,
     'set_smart_dashes' => true,
-]));
+], fn () => $currentLocale));
 ```
+
+The second constructor argument is a locale resolver — a callable returning the
+current locale as a string (`cs_CZ`, `de-CH`, a bare `cs`, …). It is invoked on
+**every** `|typography` call, not cached, so a request that changes locale
+mid-render (e.g. rendering two languages of the same page) always typesets each
+call in the right one. Pass `null` (the default) to skip the language layer
+entirely. A resolver that throws degrades to no language layer for that call
+rather than breaking the render.
 
 ### In templates
 
@@ -61,35 +72,48 @@ and similar markup, and is emitted unescaped.
 
 ## Configuration
 
-Every key in your YAML or array becomes a method call on
-[PHP-Typography's `Settings` class](https://github.com/mundschenk-at/php-typography/blob/main/src/class-settings.php).
-The library's full `Settings(true)` defaults are applied first; your
-values override them.
+The package ships two things beyond the `Settings` class defaults:
 
-### Example: Czech (`cs-CZ`) settings
+- **A house policy** (`resources/policy.yml`) — settings that are a house
+  decision rather than a property of any one language (e.g. unit spacing on,
+  dewidowing off). Applied on every render, regardless of what you pass in.
+- **Thirteen per-language tables** (`resources/languages/<tag>.yml`) — quote
+  styles, dash conventions, single-character word spacing, and other settings
+  that genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `en`, `fr`,
+  `ru`, `sl`, `hr`, `hu`, `nl`, `pt`, `tr`. Looked up from the locale resolver
+  (see above) via `LocaleResolver::candidates()`, which tries the
+  region/script-qualified tag first and falls back to the bare language — e.g.
+  `de_CH` tries `de-CH` then `de`. An unrecognised language yields no language
+  layer; the house policy still applies.
+
+Every key in your own YAML file or array — and in the two layers above —
+becomes a method call on
+[PHP-Typography's `Settings` class](https://github.com/mundschenk-at/php-typography/blob/main/src/class-settings.php).
+
+### Merge order
+
+Later layers win on a per-key basis; a layer that doesn't touch a key leaves
+the earlier value in place.
+
+```
+1. PHP-Typography's own Settings(true) defaults
+2. resources/policy.yml           — house policy, every render
+3. resources/languages/<tag>.yml  — resolved from the locale resolver
+4. $config                        — your constructor argument (path or array)
+5. |typography({ ... })           — per-call arguments
+```
+
+You do **not** need to write a settings file just to typeset one of the
+thirteen covered languages — pass a locale resolver and steps 1–3 already
+produce a correct result. Write your own file (or array) only when your
+project departs from the house style: a different quote character, hyphenation
+switched on, a language the table doesn't cover, or a one-off override that
+should apply to every call rather than just one.
 
 ```yaml
-# typography.yml — Czech smart typography
-set_diacritic_language: "cs"
-
-# Smart quotes — Czech style „double" and ‚single'
-set_smart_quotes: TRUE
-set_smart_quotes_primary: "doubleLow9"      # „ … "
-set_smart_quotes_secondary: "singleLow9"    # ‚ … '
-
-# Smart dashes — Czech/EU: en-dash with spaces (not US em-dash)
-set_smart_dashes: TRUE
-set_smart_dashes_style: "international"
-
-# Smart spacing
-set_single_character_word_spacing: TRUE     # k/s/v/z/o/u/i/a + nbsp — required in CZ
-set_unit_spacing: TRUE                      # "5 kg" → "5&nbsp;kg"
-set_dewidow: FALSE                          # last-line widow protection — bad for responsive layouts
-
-# Wrapping helpers
-set_hyphenation: FALSE                      # leave to CSS `hyphens: auto` + `lang="cs"`
-set_url_wrap: FALSE
-set_email_wrap: FALSE
+# typography.yml — project override, layered on top of the house policy
+# and the resolved language table
+set_hyphenation: TRUE   # this project wants CSS-independent hyphenation
 ```
 
 ## What's not included

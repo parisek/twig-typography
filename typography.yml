@@ -1,12 +1,17 @@
-# parisek/twig-typography — bundled settings marker
+# parisek/twig-typography — deprecated marker, intentionally empty.
 #
-# This file ships intentionally empty. When the extension is constructed
-# without arguments, this path is loaded — an empty parse resolves to
-# `[]`, which means PHP-Typography's own `Settings(true)` defaults apply
-# unmodified.
+# This file used to be the fallback when the extension was constructed with
+# no arguments. Since 1.3.0 that role belongs to `resources/policy.yml`, which
+# carries the house policy and is applied on every render regardless of what a
+# consumer passes here.
 #
-# To override defaults, pass either:
-#   - a YAML file path:    new TypographyExtension('/path/to/your.yml')
+# The file is kept only so a consumer that resolves this path by hand does not
+# break on a minor upgrade. Nothing in the package loads it. It will be removed
+# in the next major.
+#
+# To override the house policy, pass either:
+#   - a YAML file path:     new TypographyExtension('/path/to/your.yml')
 #   - a PHP settings array: new TypographyExtension(['set_smart_quotes' => true])
 #
-# See README.md for a Czech (cs-CZ) configuration sample.
+# To get per-language typesetting, also pass a locale resolver:
+#   new TypographyExtension('', fn () => 'cs_CZ')
