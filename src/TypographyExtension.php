@@ -98,7 +98,31 @@ final class TypographyExtension extends AbstractExtension
             // An unrecognised key must not fatal the render — e.g. a typo'd
             // option name, or a key meant for a future PHP-Typography
             // version this package hasn't caught up to yet.
-            if (!method_exists($settings, $setting)) {
+            //
+            // method_exists() alone is not enough: it returns true for
+            // protected/private methods too (e.g. `get_style` is a real,
+            // protected Settings method — calling it from here fatals with
+            // "Call to protected method"). is_callable() with this exact
+            // syntax ([$settings, $setting]) resolves visibility from the
+            // *calling scope* (this file, not inside the Settings class), so
+            // it only returns true for methods actually invocable from here
+            // — i.e. public ones. That is exactly the guard we need, with no
+            // extra Reflection object to construct.
+            //
+            // Additionally require a `set_` prefix. Every meaningful
+            // Settings option is exposed as a `set_*` mutator; the class also
+            // exposes public non-`set_` methods (getters, `__construct`,
+            // etc.) that must never be reachable via a settings key. Without
+            // the prefix check, a magic method like `__construct` or a
+            // future public getter would either fatal (wrong arity) or
+            // silently corrupt state instead of being skipped. Requiring the
+            // prefix also makes the contract legible: a settings key maps to
+            // a setter, full stop. The one tradeoff — a hypothetical future
+            // public setter that doesn't follow the `set_` convention would
+            // be silently skipped rather than applied — is the safer failure
+            // mode for a library call we don't control upstream (fail silent,
+            // not fail fatal).
+            if (!str_starts_with($setting, 'set_') || !is_callable([$settings, $setting])) {
                 continue;
             }
 

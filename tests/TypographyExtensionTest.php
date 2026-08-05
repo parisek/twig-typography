@@ -463,4 +463,68 @@ final class TypographyExtensionTest extends TestCase
 
         self::assertStringContainsString('„hi”', strip_tags($result));
     }
+
+    #[Test]
+    public function a_key_colliding_with_a_protected_method_is_skipped_and_surrounding_settings_still_apply(): void
+    {
+        // `get_style` is a real method on Settings — but protected, not part
+        // of the public setter surface. method_exists() alone can't tell the
+        // difference (it returns true regardless of visibility), so it would
+        // let this through and fatal on "Call to protected method
+        // PHP_Typography\Settings::get_style()". The valid sibling key in
+        // the same call must still take effect.
+        $extension = new TypographyExtension();
+
+        $result = $extension->applyTypography('He said "hi".', [
+            'get_style' => true,
+            'set_smart_quotes_primary' => 'doubleLow9',
+        ]);
+
+        self::assertStringContainsString('„hi”', strip_tags($result));
+    }
+
+    #[Test]
+    public function a_key_colliding_with_a_magic_method_is_skipped_and_surrounding_settings_still_apply(): void
+    {
+        // `__construct` is public on Settings, so a bare is_callable() check
+        // (without the `set_` prefix requirement) would let it through and
+        // either fatal on argument mismatch or silently reinitialise the
+        // object mid-render. The valid sibling key in the same call must
+        // still take effect.
+        $extension = new TypographyExtension();
+
+        $result = $extension->applyTypography('He said "hi".', [
+            '__construct' => true,
+            'set_smart_quotes_primary' => 'doubleLow9',
+        ]);
+
+        self::assertStringContainsString('„hi”', strip_tags($result));
+    }
+
+    #[Test]
+    public function a_project_settings_file_language_override_leaves_other_languages_untouched(): void
+    {
+        // End-to-end version of a_project_language_override_leaves_other_languages_untouched()
+        // above, routed through an actual project settings YAML file instead
+        // of an array — that's what a real downstream project ships. The
+        // fixture overrides only `cs`; `pl` must still come from the
+        // package's own bundled table, untouched.
+        $locale = 'cs_CZ';
+        $extension = new TypographyExtension(
+            __DIR__ . '/fixtures/project-with-cs-override.yml',
+            static function () use (&$locale): string {
+                return $locale;
+            },
+        );
+
+        $czech = $extension->applyTypography('Řekl "ahoj" dnes.');
+        $locale = 'pl_PL';
+        $polish = $extension->applyTypography('Powiedział "cześć" dzisiaj.');
+
+        // Czech: project override wins over the package's own „…“ table.
+        self::assertStringContainsString('«', $czech);
+        self::assertStringNotContainsString('„', $czech);
+        // Polish: untouched by the project config, still the package's „…”.
+        self::assertStringContainsString('„cześć”', $polish);
+    }
 }

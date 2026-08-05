@@ -1,0 +1,8 @@
+# Test fixture — a project settings file that overrides one language
+# (`cs`) via the `languages:` layer, used by
+# TypographyExtensionTest::a_project_settings_file_language_override_leaves_other_languages_untouched.
+# Mirrors what a real downstream project ships: a single YAML file with an
+# optional `languages:` block layered on top of package/global defaults.
+languages:
+    cs:
+        set_smart_quotes_primary: "doubleGuillemets"
