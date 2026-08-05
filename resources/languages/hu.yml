@@ -1,0 +1,11 @@
+# Hungarian. Quotes „…” — low-9 opening, RIGHT-double closing.
+# Closes like Polish, not like Czech and German, despite opening the same way.
+set_diacritic_language: "hu"
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleLow9"
+set_smart_quotes_secondary: "singleLow9"
+set_smart_dashes: true
+set_smart_dashes_style: "international"
+set_single_character_word_spacing: false
+set_french_punctuation_spacing: false
+set_smart_ordinal_suffix: false

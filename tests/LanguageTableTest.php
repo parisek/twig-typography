@@ -31,6 +31,13 @@ final class LanguageTableTest extends TestCase
             'pl' => ['pl_PL', 'Powiedział "cześć" dzisiaj.', '„cześć”'],
             'en' => ['en_US', 'He said "hi" today.', '“hi”'],
             'ru' => ['ru_RU', 'Он сказал "привет" сегодня.', '«привет»'],
+            'sk' => ['sk_SK', 'Povedal "ahoj" dnes.', '„ahoj“'],
+            'sl' => ['sl_SI', 'Rekel je "zdravo" danes.', '„zdravo“'],
+            'hr' => ['hr_HR', 'Rekao je "bok" danas.', '„bok“'],
+            'hu' => ['hu_HU', 'Azt mondta "szia" ma.', '„szia”'],
+            'nl' => ['nl_NL', 'Hij zei "hallo" vandaag.', '“hallo”'],
+            'pt' => ['pt_PT', 'Ele disse "olá" hoje.', '“olá”'],
+            'tr' => ['tr_TR', 'Bugün "merhaba" dedi.', '“merhaba”'],
         ];
     }
 
