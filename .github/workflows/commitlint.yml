@@ -1,0 +1,46 @@
+name: Lint PR Title
+
+# Enforces Conventional Commits on the PR title. PRs are squash-merged with the
+# PR title as the commit subject (see AGENTS.md § Per-PR conventions), so the
+# title is what git history — and any future tooling that reads it — actually
+# gets. Same-repo PRs only, so plain `pull_request` (no secrets) is enough;
+# no untrusted code is checked out.
+#
+# Only the PR title is linted, never past commits: `git log` already carries
+# non-conventional subjects from before this rule existed (e.g. "Beta",
+# "README typo", "Release 1.2.3"), and a history-wide check would fail on
+# every PR forever. Checking the title also matches the squash-merge model —
+# the title is the only subject that survives onto `main`.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed types — mirrors what `git log` actually shows in this
+          # repo's history (feat/fix/docs/chore/ci/test + the project's own
+          # `qa` type for aggregate code-quality commits). Deliberately
+          # narrower than the Angular preset: no perf/build/revert/style —
+          # add one only once a real commit needs it.
+          types: |
+            feat
+            fix
+            docs
+            chore
+            ci
+            test
+            qa
+          # Scope is optional and freeform in this repo's history
+          # (fix(typography), fix(languages), fix(ci), fix(test) alongside
+          # plenty of scopeless commits) — no fixed scope enum.
+          requireScope: false
