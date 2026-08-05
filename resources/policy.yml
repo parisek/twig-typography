@@ -1,0 +1,38 @@
+# parisek/twig-typography — house policy defaults.
+#
+# Applied on every render, beneath the per-language table. These are the
+# settings that are a house decision rather than a property of the language:
+# a Czech page and an English page want the same answer for all of them.
+#
+# Language-dependent settings live in `languages/<tag>.yml` instead.
+# A project overrides any of this through its own settings file or a
+# per-call `|typography({...})` argument.
+
+# --- Diacritics --------------------------------------------------------------
+set_smart_diacritics: false      # auto-add háčky from a dictionary — unsafe on brand and product names
+
+# --- Spacing -----------------------------------------------------------------
+set_unit_spacing: true           # "5 kg" -> "5&nbsp;kg"
+set_dewidow: false               # last-line widow protection — fights responsive layouts
+set_space_collapse: false        # leave whitespace as authored
+
+# --- Wrapping ----------------------------------------------------------------
+set_hyphenation: false           # left to CSS `hyphens: auto` plus `lang`
+set_url_wrap: false              # opt in per call when a layout needs it
+set_email_wrap: false            # opt in per call when a layout needs it
+
+# --- Style hooks (wrap into <span class="...">) ------------------------------
+# All off: the stylesheets do not target these classes, so every one of them is
+# markup nobody reads. `set_style_ampersands` defaults to TRUE in the library,
+# which is how <span class="amp"> reached production unnoticed.
+set_style_caps: false
+set_style_ampersands: false
+set_style_numbers: false
+set_style_hanging_punctuation: false
+set_initial_quote_tags: false
+
+# --- Smart replacements ------------------------------------------------------
+set_smart_math: false            # "5x5" -> "5×5" — collides with price lists and specs
+set_smart_fractions: false       # "1/2" -> "½" — collides with dates and ratios
+set_smart_exponents: false
+set_smart_area_units: false      # "m2" -> "m²" — opt in per call when wanted
