@@ -1,0 +1,11 @@
+# Czech. Quotes „…“ — low-9 opening, left-double closing.
+# NOT `doubleLow9`, which closes `”` and is the Polish pair.
+set_diacritic_language: "cs"
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleLow9Reversed"
+set_smart_quotes_secondary: "singleLow9Reversed"
+set_smart_dashes: true
+set_smart_dashes_style: "international"
+set_single_character_word_spacing: true   # k/s/v/z/o/u/i/a + NBSP — required in Czech
+set_french_punctuation_spacing: false
+set_smart_ordinal_suffix: false           # English logic (1st/2nd) — Czech writes "1."

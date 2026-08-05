@@ -1,0 +1,10 @@
+# English. Quotes “…” and ‘…’, em-dash without surrounding spaces.
+set_diacritic_language: "en-GB"
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleCurled"
+set_smart_quotes_secondary: "singleCurled"
+set_smart_dashes: true
+set_smart_dashes_style: "traditionalUS"
+set_single_character_word_spacing: false  # "A house" must not become "A&nbsp;house"
+set_french_punctuation_spacing: false
+set_smart_ordinal_suffix: true            # 1st / 2nd / 3rd — English only

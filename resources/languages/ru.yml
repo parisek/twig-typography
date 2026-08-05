@@ -1,0 +1,10 @@
+# Russian. Guillemets without the French inner spacing.
+set_diacritic_language: "ru"
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleGuillemets"
+set_smart_quotes_secondary: "doubleLow9Reversed"
+set_smart_dashes: true
+set_smart_dashes_style: "international"
+set_single_character_word_spacing: false
+set_french_punctuation_spacing: false
+set_smart_ordinal_suffix: false

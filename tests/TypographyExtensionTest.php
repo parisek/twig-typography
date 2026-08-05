@@ -209,29 +209,13 @@ final class TypographyExtensionTest extends TestCase
     #[Test]
     public function the_language_table_supplies_quotes_for_the_resolved_locale(): void
     {
-        // BLOCKED on Task 4: resources/languages/ ships no table files yet
-        // (only .gitkeep), so SettingsLoader::language('cs') / ('cs-CZ')
-        // resolves to [] and the resolved locale has no observable effect —
-        // there is nothing in this package for the language layer to load.
-        // Creating a stub resources/languages/cs.yml here would silently
-        // become the shipped table, which the brief explicitly forbids for
-        // this task. Once Task 4 lands a real cs.yml with smart-quote
-        // settings, replace this body with the brief's original assertions:
-        //
-        //   $extension = new TypographyExtension('', static fn (): string => 'cs_CZ');
-        //   $result = $extension->applyTypography('Řekl "ahoj" dnes.');
-        //   self::assertStringContainsString('„', $result);
-        //   self::assertStringContainsString('“', $result);
-        //   self::assertStringNotContainsString('”', $result);
-        //
-        // For now, assert only that the wiring (resolver -> LocaleResolver
-        // -> SettingsLoader::language) runs end to end without throwing and
-        // without corrupting the output.
         $extension = new TypographyExtension('', static fn(): string => 'cs_CZ');
 
         $result = $extension->applyTypography('Řekl "ahoj" dnes.');
 
-        self::assertStringContainsString('ahoj', $result);
+        self::assertStringContainsString('„', $result);
+        self::assertStringContainsString('“', $result);
+        self::assertStringNotContainsString('”', $result);
     }
 
     #[Test]
@@ -239,16 +223,10 @@ final class TypographyExtensionTest extends TestCase
     {
         // A language switch mid-request must be honoured. Constructing the
         // extension once and resolving the locale then would silently render
-        // the second call in the first call's language.
-        //
-        // With no resources/languages/*.yml tables shipped yet (Task 4),
-        // 'en_US' and 'cs_CZ' currently resolve to the same (empty) language
-        // layer, so distinguishable per-locale *output* can't be asserted
-        // here today — see the_language_table_supplies_quotes_for_the_resolved_locale
-        // above for that follow-up. What this test can and does assert is the
-        // property the docblock on resolveLanguageSettings() actually cares
-        // about: the resolver callable is invoked fresh on every
-        // applyTypography() call, not memoised at construction time.
+        // the second call in the first call's language. With en.yml and
+        // cs.yml both shipped (Task 4), the two calls must also produce
+        // visibly different quote conventions — not just fire the resolver
+        // twice.
         $calls = 0;
         $extension = new TypographyExtension('', static function () use (&$calls): string {
             $calls++;
@@ -256,10 +234,12 @@ final class TypographyExtensionTest extends TestCase
             return $calls === 1 ? 'en_US' : 'cs_CZ';
         });
 
-        $extension->applyTypography('Said "hi" today.');
-        $extension->applyTypography('Řekl "ahoj" dnes.');
+        $englishResult = $extension->applyTypography('He said "hi" today.');
+        $czechResult = $extension->applyTypography('Řekl "ahoj" dnes.');
 
         self::assertSame(2, $calls);
+        self::assertStringContainsString('“hi”', strip_tags($englishResult));
+        self::assertStringContainsString('„ahoj“', strip_tags($czechResult));
     }
 
     #[Test]
@@ -272,7 +252,14 @@ final class TypographyExtensionTest extends TestCase
 
         $result = $extension->applyTypography('Řekl "ahoj" dnes.');
 
+        // cs.yml ships doubleLow9Reversed („…“); this config asks for
+        // doubleGuillemets («…») instead. If the layer ordering were wrong
+        // (language beating config, or config not applied at all), the
+        // output would still carry the language table's „ — proving the
+        // merge order runs php-typography defaults -> policy -> language ->
+        // config -> per-call arguments.
         self::assertStringContainsString('«', $result);
+        self::assertStringNotContainsString('„', $result);
     }
 
     #[Test]
