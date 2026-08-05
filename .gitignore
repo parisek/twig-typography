@@ -4,3 +4,8 @@
 /.phpstan-cache/
 .DS_Store
 .php-cs-fixer.cache
+
+# Ignore docs/ contents (not the dir itself, so the adr/ negation below can re-include).
+/docs/*
+# ADRs are the one committed thing under docs/ — keep them tracked.
+!/docs/adr/

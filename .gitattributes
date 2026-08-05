@@ -10,6 +10,7 @@
 /phpunit.xml.dist    export-ignore
 /phpstan.neon        export-ignore
 /tests               export-ignore
+/docs                export-ignore
 CHANGELOG.md         export-ignore
 AGENTS.md            export-ignore
 CLAUDE.md            export-ignore
