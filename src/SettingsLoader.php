@@ -94,16 +94,20 @@ final class SettingsLoader
 
     /**
      * True when the parsed array is a list/sequence rather than a map — a
-     * YAML document that starts with `-` instead of `key: value`. Consumers
-     * merge this array and then call it as a settings map keyed by option
-     * name, so an integer key must never survive this method: it would
-     * reach the merge as `$settings->{0}(...)` and fail there instead of
-     * degrading gracefully here. An empty array has no keys at all and is
-     * therefore not a sequence by this definition.
+     * YAML document that starts with `-` instead of `key: value`, or an
+     * array built the same way in PHP. Consumers merge this array and then
+     * call it as a settings map keyed by option name, so an integer key
+     * must never survive undetected: it would reach the merge as
+     * `$settings->{0}(...)` and fail there. An empty array has no keys at
+     * all and is therefore not a sequence by this definition.
+     *
+     * Public: shared with {@see TypographyExtension} for the array-config
+     * case, which — unlike a file — is caller code and gets a loud
+     * exception instead of a silent degrade (see that call site).
      *
      * @param array<array-key, mixed> $parsed
      */
-    private static function hasIntegerKey(array $parsed): bool
+    public static function hasIntegerKey(array $parsed): bool
     {
         foreach (array_keys($parsed) as $key) {
             if (is_int($key)) {

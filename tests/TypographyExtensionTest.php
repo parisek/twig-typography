@@ -124,6 +124,62 @@ final class TypographyExtensionTest extends TestCase
     }
 
     #[Test]
+    public function a_project_settings_file_that_is_a_sequence_degrades_instead_of_fataling(): void
+    {
+        // The finding this test guards: loadDefaults() used to duplicate
+        // SettingsLoader::file()'s loading logic with only an is_array()
+        // check, so a project settings file shaped like "- foo\n- bar\n"
+        // parsed to an integer-keyed array and fataled inside
+        // applyTypography() at `$settings->{0}(...)` — "Method name must be
+        // a string". The identical content in a package resource (see
+        // SettingsLoaderTest::a_sequence_yaml_document_yields_no_settings)
+        // was already safe. Routing through SettingsLoader::file() closes
+        // that gap: this must degrade to "no project overrides", not throw.
+        $path = tempnam(sys_get_temp_dir(), 'typo') . '.yml';
+        file_put_contents($path, "- foo\n- bar\n");
+
+        try {
+            $sequenceConfig = new TypographyExtension($path);
+            $noConfig = new TypographyExtension('');
+
+            $input = 'She said "hi".';
+
+            self::assertSame(
+                $noConfig->applyTypography($input),
+                $sequenceConfig->applyTypography($input),
+                'a sequence-shaped project settings file must produce the same output as no config at all',
+            );
+        } finally {
+            unlink($path);
+        }
+    }
+
+    #[Test]
+    public function a_sequence_shaped_array_config_throws_instead_of_silently_discarding(): void
+    {
+        // Unlike a file (host-editable data, degrades silently), an array
+        // config is handed to us directly by the host application's own
+        // construction call — a sequence here is a caller bug, and staying
+        // silent would hide it behind a page rendered with fewer settings
+        // than intended.
+        $this->expectException(\InvalidArgumentException::class);
+
+        // Decoded from JSON built at runtime from getenv() (never a literal
+        // PHPStan can trace back to a fixed shape) so the static type stays
+        // the constructor's own declared array<string, mixed> — matching
+        // what a caller genuinely has at the call site: an array whose
+        // shape is a runtime fact, not a static one. This test exercises
+        // the *runtime* guard, the thing an application actually hits when
+        // a caller builds the array from an external source PHPStan can't
+        // see into (untrusted config content, decoded JSON/YAML, ...).
+        $raw = (getenv('TYPOGRAPHY_TEST_SEQUENCE') ?: '') . '["foo", "bar"]';
+        $sequenceShaped = json_decode($raw, true);
+        self::assertIsArray($sequenceShaped);
+
+        (new TypographyExtension($sequenceShaped))->applyTypography('x');
+    }
+
+    #[Test]
     public function per_call_arguments_override_constructor_defaults(): void
     {
         $extension = new TypographyExtension([

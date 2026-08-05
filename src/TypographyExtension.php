@@ -6,7 +6,6 @@ namespace Parisek\Twig;
 
 use PHP_Typography\PHP_Typography;
 use PHP_Typography\Settings;
-use Symfony\Component\Yaml\Yaml;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -147,30 +146,38 @@ final class TypographyExtension extends AbstractExtension
     /**
      * Resolve the constructor argument into a flat settings array.
      *
+     * The string (file) case is delegated to {@see SettingsLoader::file()}
+     * so it gets the same guards as every other resource the package reads:
+     * a missing/unreadable/malformed/non-map file degrades to no overrides
+     * instead of throwing.
+     *
+     * The array case is different code, not different data: it is handed
+     * to us directly by the host application's own construction call, not
+     * parsed from a file another process could have hand-edited. Silently
+     * discarding it the way {@see SettingsLoader::file()} discards a bad
+     * file would hide a caller bug behind a page that renders with fewer
+     * settings than intended and no way to notice. So a sequence array here
+     * throws instead of degrading — the caller finds out immediately, at
+     * the call site, rather than downstream in a rendered page.
+     *
      * @return array<string, mixed>
      */
     private function loadDefaults(): array
     {
         if (is_array($this->config)) {
+            if (SettingsLoader::hasIntegerKey($this->config)) {
+                throw new \InvalidArgumentException(
+                    'Typography settings array must be a map of option name to value, not a sequence.',
+                );
+            }
+
             return $this->config;
         }
 
-        $path = $this->config;
-        if ($path === '') {
+        if ($this->config === '') {
             return [];
         }
 
-        if (!is_file($path)) {
-            return [];
-        }
-
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            return [];
-        }
-
-        $parsed = Yaml::parse($contents);
-
-        return is_array($parsed) ? $parsed : [];
+        return SettingsLoader::file($this->config);
     }
 }
