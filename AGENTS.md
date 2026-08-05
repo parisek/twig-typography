@@ -17,12 +17,23 @@ Go-style brevity. Bullets, not paragraphs. Add only what saves the next session 
 A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/php-typography`](https://github.com/mundschenk-at/php-typography) (smart quotes, dashes, ellipses, hyphenation, widows, math symbols). The wrapper is thin; the value lives in PHP-Typography.
 
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
-- `typography.yml` — bundled marker file. Empty by design since 1.2.0 — library `Settings(true)` defaults apply unless the consumer passes a YAML path or PHP array to the constructor.
-- `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php` + `tests/fixtures/` (sample configs).
+- `src/SettingsLoader.php` — all filesystem access; splits a parsed settings document into its global section and `languages:` map.
+- `src/LocaleResolver.php` — pure, I/O-free locale → candidate-tag ordering (`de_CH` → `de-CH`, `de`).
+- `typography.yml` — bundled house policy + the thirteen per-language tables, under `languages:`. Applied on every render regardless of what the consumer passes. A project's own `$config` (file or array) uses the same shape.
+- `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php`, `LanguageTableTest.php`, `SettingsLoaderTest.php`, `LocaleResolverTest.php` + `tests/fixtures/` (sample configs).
 - `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
 - `docs/adr/` may be kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/`. `.gitattributes` excludes `/docs` from the published Composer archive either way.
 
-Constructor accepts three shapes: `''` (library defaults), `'/path/to.yml'` (filesystem YAML), `[]` (PHP array, no filesystem I/O). Missing path falls back silently to library defaults — `parisek/styleguide` relies on this when `typography_config` resolves to a not-yet-created project file.
+Constructor: `(string|array $config = '', ?callable $locale_resolver = null)`.
+
+`$config` shapes (all project overrides, not defaults):
+- `''` — no project overrides.
+- `'/path/to.yml'` — filesystem YAML, project overrides. Missing/unreadable file falls back silently to no project overrides.
+- `[]`/`[...]` — PHP array, project overrides, no filesystem I/O.
+
+The bundled `typography.yml` house policy applies on every render regardless of `$config`; `$config` only layers project-specific overrides on top, it no longer gates whether typography runs at all. Consequence for `parisek/styleguide`, which passes a `typography_config` path that may not exist yet: on a missing file it now gets the house policy (plus per-language typesetting if it also passes `$locale_resolver`), not raw `Settings(true)` defaults.
+
+`$locale_resolver`: a zero-arg callable returning the active locale (e.g. `cs_CZ`); omitting it disables the per-language layer.
 
 PHP ^8.3. Twig ^3.27 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI). Symfony YAML 6/7/8.
 
@@ -87,7 +98,7 @@ Level 8 (max). The package is small enough that level 8 stays clean without effo
 
 ## Symfony YAML constraint
 
-`symfony/yaml: ^6.0 || ^7.0 || ^8.0`. The package never deeply integrates with the Symfony container — `Yaml::parse()` is the only call site, in `loadDefaults()`. Widening to a new Symfony major is essentially free if `Yaml::parse()` keeps its signature; verify with a one-off `composer require symfony/yaml:^N` in a scratch checkout before bumping.
+`symfony/yaml: ^6.0 || ^7.0 || ^8.0`. The package never deeply integrates with the Symfony container — `Yaml::parse()` is the only call site, in `SettingsLoader::file()`. Widening to a new Symfony major is essentially free if `Yaml::parse()` keeps its signature; verify with a one-off `composer require symfony/yaml:^N` in a scratch checkout before bumping.
 
 `parisek/styleguide` pulls both this package and `parisek/twig-attribute`. Make sure the Symfony YAML constraint here doesn't lag behind that downstream — otherwise the styleguide gets pinned to an older Symfony major than its own constraint would allow.
 

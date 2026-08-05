@@ -6,7 +6,6 @@ namespace Parisek\Twig;
 
 use PHP_Typography\PHP_Typography;
 use PHP_Typography\Settings;
-use Symfony\Component\Yaml\Yaml;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -14,27 +13,39 @@ final class TypographyExtension extends AbstractExtension
 {
     /**
      * Either a YAML file path (string) or an associative settings array.
-     * Resolved into a flat settings array via {@see loadDefaults()} once
-     * per filter invocation.
+     * Resolved into a flat settings array via {@see loadProjectGlobal()} and
+     * {@see resolveProjectLanguageSettings()} once per filter invocation.
      *
      * @var string|array<string, mixed>
      */
     private string|array $config;
 
     /**
+     * @var (callable(): string)|null
+     *   Returns the locale to typeset for, e.g. `cs_CZ`. The locale is injected
+     *   rather than detected, so the package carries no knowledge of its host
+     *   application. Invoked on EVERY filter call — see
+     *   {@see resolveLanguageSettings()}.
+     */
+    private $localeResolver;
+
+    /**
      * @param string|array<string, mixed> $config
-     *   - string ''       → use the bundled marker `typography.yml` (library defaults).
+     *   - string ''       → no project overrides.
      *   - string '/path'  → load the YAML file at the given absolute path.
      *   - array  []|[...] → use the array as settings directly; no filesystem I/O.
      *
-     * A non-existent file path falls back silently to library defaults, preserving
-     * the 1.1.x behaviour that consumers (notably parisek/styleguide) rely on
-     * when their `typography_config` key resolves to a path the project hasn't
-     * created yet.
+     * A non-existent file path resolves to no overrides. It no longer means
+     * "library defaults": the house policy in the package's bundled
+     * `typography.yml` applies regardless, which is the point of this layer.
+     *
+     * @param (callable(): string)|null $locale_resolver
+     *   Supplies the current locale. Absent means no language layer.
      */
-    public function __construct(string|array $config = '')
+    public function __construct(string|array $config = '', ?callable $locale_resolver = null)
     {
         $this->config = $config;
+        $this->localeResolver = $locale_resolver;
     }
 
     public function getFilters(): array
@@ -51,7 +62,7 @@ final class TypographyExtension extends AbstractExtension
     /**
      * Apply PHP-Typography to a string.
      *
-     * @param string|\Stringable|null $string       Plain string, any Stringable (Twig\Markup from `|raw`-wrapped HTML, value objects with __toString, …), or null. Null short-circuits to '' so optional/unfilled template fields (`{{ content.button.title|typography }}` against an empty ACF link) don't fatal under strict types — matches the null-tolerance convention of built-in Twig filters like `|trim`, `|lower`, `|escape`. For non-null inputs, the cast happens at entry so the rest of the method works on a plain string.
+     * @param string|\Stringable|null $string       Plain string, any Stringable (Twig\Markup from `|raw`-wrapped HTML, value objects with __toString, …), or null. Null short-circuits to '' so optional/unfilled template fields (`{{ content.button.title|typography }}` where the editor left the field empty, so the template passes null) don't fatal under strict types — matches the null-tolerance convention of built-in Twig filters like `|trim`, `|lower`, `|escape`. For non-null inputs, the cast happens at entry so the rest of the method works on a plain string.
      * @param array<string, mixed>    $arguments    Per-call setting overrides; merged on top of constructor defaults.
      * @param bool                    $use_defaults Initialise PHP-Typography's own sane defaults before applying ours.
      */
@@ -65,8 +76,56 @@ final class TypographyExtension extends AbstractExtension
 
         $settings = new Settings($use_defaults);
 
-        $merged = array_merge($this->loadDefaults(), $arguments);
+        $packagePath = SettingsLoader::packagePath();
+        $candidates = $this->localeCandidates();
+
+        $merged = array_merge(
+            SettingsLoader::global($packagePath),
+            $this->resolveLanguageSettings($packagePath, $candidates),
+            $this->loadProjectGlobal(),
+            $this->resolveProjectLanguageSettings($candidates),
+            $arguments,
+        );
         foreach ($merged as $setting => $value) {
+            // `languages` is not a real Settings method — it is a document
+            // structure key, already stripped by SettingsLoader::global()/
+            // extractGlobal() for every layer above. This guard only covers
+            // per-call $arguments, which bypass that stripping.
+            if ($setting === 'languages') {
+                continue;
+            }
+
+            // An unrecognised key must not fatal the render — e.g. a typo'd
+            // option name, or a key meant for a future PHP-Typography
+            // version this package hasn't caught up to yet.
+            //
+            // method_exists() alone is not enough: it returns true for
+            // protected/private methods too (e.g. `get_style` is a real,
+            // protected Settings method — calling it from here fatals with
+            // "Call to protected method"). is_callable() with this exact
+            // syntax ([$settings, $setting]) resolves visibility from the
+            // *calling scope* (this file, not inside the Settings class), so
+            // it only returns true for methods actually invocable from here
+            // — i.e. public ones. That is exactly the guard we need, with no
+            // extra Reflection object to construct.
+            //
+            // Additionally require a `set_` prefix. Every meaningful
+            // Settings option is exposed as a `set_*` mutator; the class also
+            // exposes public non-`set_` methods (getters, `__construct`,
+            // etc.) that must never be reachable via a settings key. Without
+            // the prefix check, a magic method like `__construct` or a
+            // future public getter would either fatal (wrong arity) or
+            // silently corrupt state instead of being skipped. Requiring the
+            // prefix also makes the contract legible: a settings key maps to
+            // a setter, full stop. The one tradeoff — a hypothetical future
+            // public setter that doesn't follow the `set_` convention would
+            // be silently skipped rather than applied — is the safer failure
+            // mode for a library call we don't control upstream (fail silent,
+            // not fail fatal).
+            if (!str_starts_with($setting, 'set_') || !is_callable([$settings, $setting])) {
+                continue;
+            }
+
             $settings->{$setting}($value);
         }
 
@@ -92,29 +151,132 @@ final class TypographyExtension extends AbstractExtension
     }
 
     /**
-     * Resolve the constructor argument into a flat settings array.
+     * The ordered candidate tags for the current call's locale (most specific
+     * first), or `[]` when there is no resolver, it throws, or it returns an
+     * unusable locale.
+     *
+     * Resolved once per {@see applyTypography()} call, not cached on the
+     * instance: the host application can change the active locale between two
+     * renders within a single request, and a value captured at construction
+     * would typeset the second render in the first one's language. Computed
+     * once per call (not once per layer) so the package table and the
+     * project table are resolved against the same locale.
+     *
+     * A resolver that throws degrades to no language layer. It runs inside the
+     * render path, so a failing language backend must cost typography, not the
+     * whole page.
+     *
+     * @return array<int, string>
+     */
+    private function localeCandidates(): array
+    {
+        if ($this->localeResolver === null) {
+            return [];
+        }
+
+        try {
+            $locale = ($this->localeResolver)();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        return LocaleResolver::candidates($locale);
+    }
+
+    /**
+     * The merged `languages:` entries for every candidate tag present in the
+     * settings file at $path, folded least-specific to most-specific.
+     *
+     * `$candidates` arrives most-specific-first (e.g. `['en-GB', 'en']`), so
+     * this walks it in reverse and layers each present entry on top of the
+     * last: `en` first, then `en-GB` merged over it. A regional entry is
+     * therefore additive over its base language, exactly like every other
+     * layer in the merge order — it only needs to state the keys that
+     * genuinely differ, and a key it doesn't restate still comes from the
+     * bare-language entry beneath it. An earlier "first tag present wins"
+     * version of this method silently dropped the base language's settings
+     * whenever a regional entry existed at all (e.g. `en-GB` losing `en`'s
+     * `set_smart_ordinal_suffix`), which contradicted the documented
+     * "additive, merged per key" contract for `languages:`.
+     *
+     * @param  array<int, string>   $candidates
+     * @return array<string, mixed>
+     */
+    private function resolveLanguageSettings(string $path, array $candidates): array
+    {
+        $merged = [];
+        foreach (array_reverse($candidates) as $tag) {
+            $merged = array_merge($merged, SettingsLoader::language($path, $tag));
+        }
+
+        return $merged;
+    }
+
+    /**
+     * The global section of the constructor's `$config` argument.
+     *
+     * The string (file) case is delegated to {@see SettingsLoader::global()}
+     * so it gets the same guards as every other resource the package reads:
+     * a missing/unreadable/malformed/non-map file degrades to no overrides
+     * instead of throwing.
+     *
+     * The array case is different code, not different data: it is handed
+     * to us directly by the host application's own construction call, not
+     * parsed from a file another process could have hand-edited. Silently
+     * discarding it the way {@see SettingsLoader::file()} discards a bad
+     * file would hide a caller bug behind a page that renders with fewer
+     * settings than intended and no way to notice. So a sequence array here
+     * throws instead of degrading — the caller finds out immediately, at
+     * the call site, rather than downstream in a rendered page.
      *
      * @return array<string, mixed>
      */
-    private function loadDefaults(): array
+    private function loadProjectGlobal(): array
     {
         if (is_array($this->config)) {
-            return $this->config;
+            if (SettingsLoader::hasIntegerKey($this->config)) {
+                throw new \InvalidArgumentException(
+                    'Typography settings array must be a map of option name to value, not a sequence.',
+                );
+            }
+
+            return SettingsLoader::extractGlobal($this->config);
         }
 
-        $path = $this->config !== '' ? $this->config : __DIR__ . '/../typography.yml';
-
-        if (!is_file($path)) {
+        if ($this->config === '') {
             return [];
         }
 
-        $contents = file_get_contents($path);
-        if ($contents === false) {
+        return SettingsLoader::global($this->config);
+    }
+
+    /**
+     * The `languages:` layer of the constructor's `$config` argument, for the
+     * current call's locale candidates. Mirrors {@see loadProjectGlobal()}'s
+     * string-vs-array handling.
+     *
+     * @param  array<int, string>   $candidates
+     * @return array<string, mixed>
+     */
+    private function resolveProjectLanguageSettings(array $candidates): array
+    {
+        if ($candidates === []) {
             return [];
         }
 
-        $parsed = Yaml::parse($contents);
+        if (is_array($this->config)) {
+            $merged = [];
+            foreach (array_reverse($candidates) as $tag) {
+                $merged = array_merge($merged, SettingsLoader::extractLanguage($this->config, $tag));
+            }
 
-        return is_array($parsed) ? $parsed : [];
+            return $merged;
+        }
+
+        if ($this->config === '') {
+            return [];
+        }
+
+        return $this->resolveLanguageSettings($this->config, $candidates);
     }
 }

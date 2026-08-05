@@ -6,6 +6,93 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-05
+
+### Changed
+
+- **Rendered output changes.** The package now ships a house typographic
+  policy — in its bundled `typography.yml` — and applies it on every render,
+  including where a consumer passes a settings path that does not exist.
+  Previously that case fell through to php-typography's own defaults. The API
+  is unchanged and additive, but review a page before deploying: ampersands
+  lose their `<span class="amp">` wrapper, widow protection is off, and
+  quotes follow the resolved language.
+- **Consuming-project settings files now use the same shape as the bundled
+  table.** A project's own settings (a YAML file path or a PHP array, passed
+  as `$config`) can carry an optional `languages:` map alongside its global
+  keys, keyed by language tag — the same shape the bundled `typography.yml`
+  uses for its own thirteen tables. This is what makes a single-language
+  override possible: a project can override, say, just Czech's primary quote
+  character without touching any other language and without restating the
+  rest of Czech's own settings — `languages:` overrides are merged per key,
+  not per block, so an entry only needs to state what it actually changes.
+- **An unrecognised settings key is now skipped instead of fataling the
+  render.** Previously any key without a matching method on
+  PHP-Typography's `Settings` class (a typo'd option name, for instance)
+  raised `Error: Call to undefined method Settings::...()` and took the whole
+  page down. It is now checked against `Settings` via a `set_`-prefix check
+  plus `is_callable()` (not `method_exists()`, which also matches
+  non-`set_` and non-public members) and silently ignored — no logging, no exception — while every other key in the
+  same call still applies. This also closes the path that made the
+  `languages:` map itself unsafe to introduce: without this fix, passing it
+  through to `Settings` unfiltered would have hit the identical fatal.
+
+### Added
+
+- Per-locale language tables for `cs`, `de`, `de-CH`, `en`, `en-GB`, `fr`,
+  `hr`, `hu`, `pl`, `ru`, `sk`, `sl`, `tr`, bundled in `typography.yml`'s
+  `languages:` map —
+  selected by an optional `$locale_resolver` constructor argument, invoked on
+  every filter call so a language switch mid-request is honoured. Dutch and
+  Portuguese are deliberately not included yet — Dutch quote practice is
+  genuinely mixed rather than settled, and European vs. Brazilian Portuguese
+  disagree on the primary pair, so a single table would be wrong for one of
+  them. A missing table degrades to the house policy's own language-neutral
+  defaults, not a wrong language, so this is a safe omission rather than a
+  gap to work around.
+- `LocaleResolver` and `SettingsLoader`, both public.
+
+### Fixed
+
+- Czech and German rendered `„…”`, the Polish pair, instead of `„…“`. The
+  setting that produced it was the only one available to a consumer, so every
+  project carrying it was wrong the same way.
+- A consumer with a flat (single-language) settings file had no way to
+  override just one language without it applying to every language — the
+  settings file predated the per-language table entirely. The `languages:`
+  shape above closes this.
+- Croatian rendered `„…“`, the Czech/German pair, instead of `„…”`. Fixed
+  against pravopis.hr (Institut za hrvatski jezik i jezikoslovlje) rule 8.16;
+  nested quotes corrected from a low-9 variant to `‘…’` per rule 8.17.
+- `en` mixed American dashes (`set_smart_dashes_style: "traditionalUS"`) with
+  British hyphenation (`set_diacritic_language: "en-GB"`). `en` now commits to
+  American throughout; a new `en-GB` table carries the British dash
+  convention (spaced en-dash) on top of the shared quote/ordinal settings.
+- Swiss German had no table of its own and silently fell back to the `de`
+  pair (`„…“`), which Swiss orthography does not use. Added `de-CH`
+  (`«…»`, nested `‹…›`), per the Bundeskanzlei Schreibweisungen.
+- A regional entry (`de-CH`, `en-GB`) replaced its base language's entry
+  outright instead of layering on top of it, contradicting the documented
+  "additive, merged per key" contract for `languages:`. `en-GB` lost `en`'s
+  `set_smart_ordinal_suffix` this way, silently. Region now merges over base
+  over global, so a regional entry only needs the keys that genuinely
+  differ — `de-CH` no longer has to restate `de`'s settings it doesn't
+  change.
+
+### Upgrading from 1.2.x
+
+- Pass a locale resolver to the constructor (`new TypographyExtension('',
+  fn () => $currentLocale)`) to get per-language typesetting instead of the
+  single hardcoded pair. The callable should return the locale currently
+  being rendered, in either `cs_CZ` or `cs` form.
+- A project settings file/array passed as the constructor's `$config`
+  argument is still read and still applied on top of the bundled language
+  table, exactly as before; it is simply optional now rather than required.
+  If it only restates what the house policy already sets, it can go. If it
+  carries a real override, keep it — and consider moving any single-language
+  overrides into a `languages:` sub-map so they stop leaking onto other
+  languages.
+
 ## [1.2.3] - 2026-06-01
 
 ### Security

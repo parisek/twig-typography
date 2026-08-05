@@ -1,12 +1,187 @@
-# parisek/twig-typography — bundled settings marker
+# parisek/twig-typography — house policy + per-language tables.
 #
-# This file ships intentionally empty. When the extension is constructed
-# without arguments, this path is loaded — an empty parse resolves to
-# `[]`, which means PHP-Typography's own `Settings(true)` defaults apply
-# unmodified.
+# Applied on every render, beneath any project settings file/array and any
+# per-call `|typography({...})` arguments. Top-level keys are global (a house
+# decision rather than a property of the language: a Czech page and an
+# English page want the same answer for all of them). The `languages:` map
+# adds per-language overrides, merged per key — a language entry only needs
+# to state the keys that genuinely vary; anything it omits still falls back
+# to the global value above.
 #
-# To override defaults, pass either:
-#   - a YAML file path:    new TypographyExtension('/path/to/your.yml')
-#   - a PHP settings array: new TypographyExtension(['set_smart_quotes' => true])
+# A regional entry (`de-CH`, `en-GB`, tag `<language>-<REGION>`) layers on
+# top of its own bare-language entry the same way, not in place of it: for
+# `de_CH`, `de-CH` is merged over `de`, which is merged over the global
+# section. A regional entry therefore only needs the keys that genuinely
+# differ from its base language — everything else, e.g. `de`'s
+# `set_diacritic_language`, still applies to `de-CH` unless the regional
+# entry restates it.
 #
-# See README.md for a Czech (cs-CZ) configuration sample.
+# A project's own settings file/array uses this exact same shape (global keys
+# at top level, optional `languages:` map) — see README.md "Configuration".
+
+# --- Diacritics --------------------------------------------------------------
+set_smart_diacritics: false      # auto-add diacritics from a dictionary — unsafe on brand and product names
+
+# --- Spacing -----------------------------------------------------------------
+set_unit_spacing: true           # "5 kg" -> "5&nbsp;kg"
+set_dewidow: false               # last-line widow protection — fights responsive layouts
+set_space_collapse: false        # leave whitespace as authored
+
+# --- Wrapping ----------------------------------------------------------------
+set_hyphenation: false           # left to CSS `hyphens: auto` plus `lang`
+set_url_wrap: false              # opt in per call when a layout needs it
+set_email_wrap: false            # opt in per call when a layout needs it
+
+# --- Style hooks (wrap into <span class="...">) ------------------------------
+# All off: the stylesheets do not target these classes, so every one of them is
+# markup nobody reads. `set_style_ampersands` defaults to TRUE in the library,
+# which is how <span class="amp"> reached production unnoticed.
+set_style_caps: false
+set_style_ampersands: false
+set_style_numbers: false
+set_style_hanging_punctuation: false
+set_initial_quote_tags: false
+
+# --- Smart replacements ------------------------------------------------------
+set_smart_math: false            # "5x5" -> "5×5" — collides with price lists and specs
+set_smart_fractions: false       # "1/2" -> "½" — collides with dates and ratios
+set_smart_exponents: false
+set_smart_area_units: false      # "m2" -> "m²" — opt in per call when wanted
+
+# --- Language-neutral defaults for smart quotes/dashes -----------------------
+# Explicit so a language absent from the `languages:` map below (or from a
+# project's own table) still has a documented, house-chosen answer instead of
+# falling through to whatever PHP-Typography's own Settings(true) picks.
+set_smart_quotes: true
+set_smart_quotes_primary: "doubleCurled"
+set_smart_quotes_secondary: "singleCurled"
+set_smart_dashes: true
+set_smart_dashes_style: "international"
+set_single_character_word_spacing: false
+set_french_punctuation_spacing: false
+set_smart_ordinal_suffix: false
+
+# --- Per-language overrides ---------------------------------------------------
+# Additive per key: a language entry only lists what departs from the global
+# section above. Values below are preserved exactly from the pre-1.3.0
+# per-file language tables.
+languages:
+  # Czech. Quotes „…“ — low-9 opening, left-double closing.
+  # NOT `doubleLow9`, which closes `”` and is the Polish pair.
+  cs:
+    set_diacritic_language: "cs"
+    set_smart_quotes_primary: "doubleLow9Reversed"
+    set_smart_quotes_secondary: "singleLow9Reversed"
+    set_single_character_word_spacing: true   # k/s/v/z/o/u/i/a + NBSP — required in Czech
+
+  # Slovak. Quotes „…“ — same pair as Czech.
+  sk:
+    set_diacritic_language: "sk"
+    set_smart_quotes_primary: "doubleLow9Reversed"
+    set_smart_quotes_secondary: "singleLow9Reversed"
+    set_single_character_word_spacing: true   # same one-letter prepositions as Czech
+
+  # Polish. Quotes „…” — low-9 opening, right-double closing.
+  # This is the pair the whole fleet was accidentally using for Czech.
+  # Nested quotes in Polish are guillemets «…», not a single-quote variant —
+  # PWN (Polish Language Council) orthography. Don't "fix" this to singleLow9:
+  # that renders ‚cześć' (wrong), not «cześć» (correct).
+  pl:
+    set_diacritic_language: "pl"
+    set_smart_quotes_primary: "doubleLow9"
+    set_smart_quotes_secondary: "doubleGuillemets"
+    set_single_character_word_spacing: true
+
+  # German (Germany/Austria). Quotes „…“, same pair as Czech.
+  de:
+    set_diacritic_language: "de"
+    set_smart_quotes_primary: "doubleLow9Reversed"
+    set_smart_quotes_secondary: "singleLow9Reversed"
+
+  # Swiss German. A regional entry layers on top of its base language (`de`
+  # here), so it states only what differs — `set_diacritic_language: "de"`
+  # still applies, inherited, not restated. Quotes «…», nested ‹…› —
+  # guillemets, not the „…“ pair `de` uses. Bundeskanzlei Schreibweisungen
+  # (Swiss federal writing instructions): "In amtlichen Texten des Bundes
+  # sind Guillemets vorgeschrieben, deutsche Anführungszeichen sind nicht
+  # zulässig." No French inner spacing (`doubleGuillemets`, not
+  # `doubleGuillemetsFrench`) — that convention is French-specific, not
+  # Swiss-German.
+  de-CH:
+    set_smart_quotes_primary: "doubleGuillemets"
+    set_smart_quotes_secondary: "singleGuillemets"
+
+  # English, American convention (the fleet default). Quotes "…" and '…',
+  # unspaced em-dash. Committed to one coherent regional story rather than
+  # mixing American dashes with British hyphenation, which is what the bare
+  # `en` entry did before this table existed: `set_diacritic_language`
+  # ("en-GB") and `set_smart_dashes_style` ("traditionalUS", American)
+  # disagreed on the variant. Bare `en` now means American throughout;
+  # `en-GB` below carries the British difference, mirroring how `de`/`de-CH`
+  # split.
+  en:
+    set_diacritic_language: "en-US"
+    set_smart_quotes_primary: "doubleCurled"
+    set_smart_quotes_secondary: "singleCurled"
+    set_smart_dashes_style: "traditionalUS"
+    set_smart_ordinal_suffix: true            # 1st / 2nd / 3rd — English only
+
+  # English, British convention. Same quotes and ordinal handling as `en`;
+  # differs only in hyphenation dictionary and dash style — British usage
+  # favours a spaced en-dash over the American unspaced em-dash (Butterick's
+  # Practical Typography; also Oxford/Hart's Rules house style).
+  en-GB:
+    set_diacritic_language: "en-GB"
+    set_smart_dashes_style: "international"
+
+  # French. Guillemets with non-breaking spaces inside, and NBSP before the
+  # high punctuation (: ; ! ?) — the one language that needs
+  # `set_french_punctuation_spacing`, which house policy keeps off.
+  fr:
+    set_diacritic_language: "fr"
+    set_smart_quotes_primary: "doubleGuillemetsFrench"
+    set_smart_quotes_secondary: "singleGuillemets"
+    set_french_punctuation_spacing: true
+
+  # Russian. Guillemets without the French inner spacing.
+  ru:
+    set_diacritic_language: "ru"
+    set_smart_quotes_primary: "doubleGuillemets"
+    set_smart_quotes_secondary: "doubleLow9Reversed"
+
+  # Slovenian. Quotes „…“.
+  sl:
+    set_diacritic_language: "sl"
+    set_smart_quotes_primary: "doubleLow9Reversed"
+    set_smart_quotes_secondary: "singleLow9Reversed"
+
+  # Croatian. Quotes „…” — low-9 opening, RIGHT-double closing. Closes like
+  # Polish and Hungarian, not like Czech and German, despite opening the same
+  # way — verified against pravopis.hr (Institut za hrvatski jezik i
+  # jezikoslovlje, the national orthography authority), rule 8.16
+  # "Navodnici": „...” is the primary pair (»...« is listed as an alternate,
+  # not the nested form). CLDR's hr.xml disagrees (quotationEnd U+201C, i.e.
+  # doubleLow9Reversed); this table follows pravopis.hr as the
+  # Croatian-specific authority. Nested quotes are ‘...’ — rule 8.17
+  # "Polunavodnici" gives the pair literally as (‘...’), i.e. singleCurled,
+  # not a low-9 variant.
+  hr:
+    set_diacritic_language: "hr"
+    set_smart_quotes_primary: "doubleLow9"
+    set_smart_quotes_secondary: "singleCurled"
+
+  # Hungarian. Quotes „…” — low-9 opening, RIGHT-double closing.
+  # Closes like Polish, not like Czech and German, despite opening the same way.
+  # Nested quotes in Hungarian are genuinely a guillemet pair »…«, not a single-quote
+  # variant — CLDR / Hungarian Academy orthography. Don't "fix" this to singleLow9:
+  # that renders ‚belso’ (wrong), not »belso« (correct).
+  hu:
+    set_diacritic_language: "hu"
+    set_smart_quotes_primary: "doubleLow9"
+    set_smart_quotes_secondary: "doubleGuillemetsReversed"
+
+  # Turkish. Quotes “…”.
+  tr:
+    set_diacritic_language: "tr"
+    set_smart_quotes_primary: "doubleCurled"
+    set_smart_quotes_secondary: "singleCurled"
