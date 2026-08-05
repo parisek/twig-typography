@@ -250,16 +250,39 @@ final class TypographyExtensionTest extends TestCase
             static fn(): string => 'cs_CZ',
         );
 
-        $result = $extension->applyTypography('Řekl "ahoj" dnes.');
+        $result = $extension->applyTypography('Řekl "ahoj" - dnes.');
 
         // cs.yml ships doubleLow9Reversed („…“); this config asks for
-        // doubleGuillemets («…») instead. If the layer ordering were wrong
-        // (language beating config, or config not applied at all), the
-        // output would still carry the language table's „ — proving the
-        // merge order runs php-typography defaults -> policy -> language ->
-        // config -> per-call arguments.
+        // doubleGuillemets («…») instead. The quote assertions alone are not
+        // load-bearing against a bypassed language layer: if cs.yml never
+        // loaded at all, «ahoj» would still come from the config and „ would
+        // still be absent, so both would pass vacuously.
+        //
+        // A candidate third assertion was `set_single_character_word_spacing`
+        // (cs.yml turns it on for the one-letter preposition "v"). Verified
+        // by hand that it does NOT distinguish a loaded table from a
+        // bypassed one: php-typography's own Settings(true) defaults already
+        // turn that setting on regardless of any table (see
+        // vendor/mundschenk-at/php-typography/src/class-settings.php,
+        // set_single_character_word_spacing($on = true) called from
+        // init_defaults()) — cs.yml's `true` is redundant with the library
+        // default, en.yml's `false` is the one doing real work. Asserting
+        // an NBSP there would have passed even with the table skipped, so
+        // it was dropped in favour of a property the table actually flips
+        // away from the library default: `set_smart_dashes_style`. The
+        // library default is `traditionalUS` (thin-spaced em dash, —);
+        // cs.yml is the only layer setting `international` (spaced en dash,
+        // –), and neither the house policy nor $config here touch dashes at
+        // all. So the en dash surviving in the output only happens if the
+        // language table was loaded and merged underneath $config — it
+        // fails both when the table is skipped and when the merge drops it.
+        // Confirmed by pointing the resolver at 'zz_ZZ' (no table): this
+        // assertion goes red while the quote assertions above stay green,
+        // proving it — not them — is what actually detects a bypassed
+        // language layer. See task-4-report.md for the full before/after.
         self::assertStringContainsString('«', $result);
         self::assertStringNotContainsString('„', $result);
+        self::assertStringContainsString('–', $result);
     }
 
     #[Test]
