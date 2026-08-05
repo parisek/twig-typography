@@ -55,6 +55,52 @@ final class LanguageTableTest extends TestCase
         self::assertStringContainsString($expected_quotes, strip_tags($result), $locale);
     }
 
+    /**
+     * One sentence per language with a nested quote inside the outer one,
+     * exercising `set_smart_quotes_secondary` — the setting the primary-quote
+     * suite above never touches. Probed against the actual library output per
+     * language, same discipline as {@see languages()}.
+     *
+     * Hungarian is the case this suite exists to catch: the fleet shipped
+     * `singleLow9` for the secondary slot, which renders `‚belso'` — a
+     * single-quote variant — instead of the correct inward guillemets
+     * `»belso«`.
+     *
+     * @return array<string, array{string, string, string}>
+     */
+    public static function nestedQuoteLanguages(): array
+    {
+        return [
+            'cs' => ['cs_CZ', 'Řekl "dnes \'ahoj\' znovu".', '‚ahoj‘'],
+            'de' => ['de_DE', 'Er sagte "heute \'hallo\' wieder".', '‚hallo‘'],
+            'pl' => ['pl_PL', 'Powiedział "dzisiaj \'cześć\' znowu".', '‚cześć’'],
+            'en' => ['en_US', 'He said "today \'hi\' again".', '‘hi’'],
+            'fr' => ['fr_FR', 'Il a dit "aujourd\'hui \'bonjour\' encore".', '‹bonjour›'],
+            'ru' => ['ru_RU', 'Он сказал "сегодня \'привет\' снова".', '„привет“'],
+            'sk' => ['sk_SK', 'Povedal "dnes \'ahoj\' znova".', '‚ahoj‘'],
+            'sl' => ['sl_SI', 'Rekel je "danes \'zdravo\' spet".', '‚zdravo‘'],
+            'hr' => ['hr_HR', 'Rekao je "danas \'bok\' opet".', '‚bok‘'],
+            'hu' => ['hu_HU', 'Azt mondta "ma \'szia\' ismét".', '»szia«'],
+            'nl' => ['nl_NL', 'Hij zei "vandaag \'hallo\' weer".', '‘hallo’'],
+            'pt' => ['pt_PT', 'Ele disse "hoje \'olá\' outra vez".', '‘olá’'],
+            'tr' => ['tr_TR', 'Bugün "yine \'merhaba\' dedi".', '‘merhaba’'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('nestedQuoteLanguages')]
+    public function secondary_quotes_match_the_language_convention(
+        string $locale,
+        string $input,
+        string $expected_nested_quotes,
+    ): void {
+        $extension = new TypographyExtension('', static fn(): string => $locale);
+
+        $result = $extension->applyTypography($input);
+
+        self::assertStringContainsString($expected_nested_quotes, strip_tags($result), $locale);
+    }
+
     #[Test]
     public function french_uses_guillemets_with_non_breaking_spaces(): void
     {
@@ -87,5 +133,30 @@ final class LanguageTableTest extends TestCase
         $result = $extension->applyTypography('A house in town.');
 
         self::assertStringNotContainsString('A&nbsp;house', $result);
+    }
+
+    #[Test]
+    public function slovak_inserts_a_non_breaking_space_after_a_single_character_word(): void
+    {
+        // Mirrors the Czech test above: sk.yml is the only one of the seven
+        // Task 5 languages with `set_single_character_word_spacing: true`.
+        $extension = new TypographyExtension('', static fn(): string => 'sk_SK');
+
+        $result = $extension->applyTypography('Bol v meste.');
+
+        self::assertStringContainsString('v&nbsp;meste', $result);
+    }
+
+    #[Test]
+    public function croatian_does_not_insert_single_character_word_spacing(): void
+    {
+        // Negative pin for the other direction: hr.yml ships the setting off,
+        // even though Croatian has its own single-letter preposition ("u")
+        // that a careless copy from sk/pl could have left spacing-enabled for.
+        $extension = new TypographyExtension('', static fn(): string => 'hr_HR');
+
+        $result = $extension->applyTypography('Kuća u gradu.');
+
+        self::assertStringNotContainsString('u&nbsp;gradu', $result);
     }
 }

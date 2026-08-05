@@ -3,7 +3,10 @@
 set_diacritic_language: "hu"
 set_smart_quotes: true
 set_smart_quotes_primary: "doubleLow9"
-set_smart_quotes_secondary: "singleLow9"
+# Nested quotes in Hungarian are genuinely a guillemet pair »…«, not a single-quote
+# variant — CLDR / Hungarian Academy orthography. Don't "fix" this to singleLow9:
+# that renders ‚belso' (wrong), not »belso« (correct).
+set_smart_quotes_secondary: "doubleGuillemetsReversed"
 set_smart_dashes: true
 set_smart_dashes_style: "international"
 set_single_character_word_spacing: false
