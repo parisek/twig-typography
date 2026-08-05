@@ -17,8 +17,10 @@ Go-style brevity. Bullets, not paragraphs. Add only what saves the next session 
 A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/php-typography`](https://github.com/mundschenk-at/php-typography) (smart quotes, dashes, ellipses, hyphenation, widows, math symbols). The wrapper is thin; the value lives in PHP-Typography.
 
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
-- `typography.yml` — bundled marker file. Empty by design since 1.2.0 — library `Settings(true)` defaults apply unless the consumer passes a YAML path or PHP array to the constructor.
-- `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php` + `tests/fixtures/` (sample configs).
+- `src/SettingsLoader.php` — all filesystem access; splits a parsed settings document into its global section and `languages:` map.
+- `src/LocaleResolver.php` — pure, I/O-free locale → candidate-tag ordering (`de_CH` → `de-CH`, `de`).
+- `typography.yml` — bundled house policy + the eleven per-language tables, under `languages:`. Applied on every render regardless of what the consumer passes. A project's own `$config` (file or array) uses the same shape.
+- `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php`, `LanguageTableTest.php`, `SettingsLoaderTest.php`, `LocaleResolverTest.php` + `tests/fixtures/` (sample configs).
 - `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
 - `docs/adr/` may be kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/`. `.gitattributes` excludes `/docs` from the published Composer archive either way.
 

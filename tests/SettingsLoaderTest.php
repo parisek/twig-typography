@@ -11,9 +11,9 @@ use PHPUnit\Framework\TestCase;
 final class SettingsLoaderTest extends TestCase
 {
     #[Test]
-    public function policy_carries_the_house_defaults(): void
+    public function global_carries_the_house_defaults(): void
     {
-        $policy = SettingsLoader::policy();
+        $policy = SettingsLoader::global(SettingsLoader::packagePath());
 
         // The one that reached production unnoticed: the library defaults this
         // to TRUE, which wraps every "&" in <span class="amp">.
@@ -23,27 +23,43 @@ final class SettingsLoaderTest extends TestCase
     }
 
     #[Test]
-    public function policy_carries_no_language_dependent_key(): void
+    public function global_strips_the_languages_key(): void
     {
-        $language_keys = [
+        // `languages` is a document-structure key, not a PHP-Typography
+        // setting — it must never survive into the flat settings array that
+        // gets applied as method calls on Settings.
+        self::assertArrayNotHasKey('languages', SettingsLoader::global(SettingsLoader::packagePath()));
+    }
+
+    #[Test]
+    public function global_carries_explicit_neutral_defaults_for_language_dependent_keys(): void
+    {
+        // Unlike the pre-1.3.0 policy.yml (which left these entirely to
+        // per-language tables), the global section now states a documented
+        // neutral answer for every language-dependent key, so a language
+        // absent from `languages:` still has a real, house-chosen value
+        // instead of falling through to whatever php-typography's own
+        // Settings(true) happens to pick.
+        $policy = SettingsLoader::global(SettingsLoader::packagePath());
+
+        $language_dependent_keys = [
             'set_smart_quotes_primary',
             'set_smart_quotes_secondary',
             'set_smart_dashes_style',
             'set_single_character_word_spacing',
             'set_french_punctuation_spacing',
-            'set_diacritic_language',
             'set_smart_ordinal_suffix',
         ];
 
-        foreach ($language_keys as $key) {
-            self::assertArrayNotHasKey($key, SettingsLoader::policy(), $key);
+        foreach ($language_dependent_keys as $key) {
+            self::assertArrayHasKey($key, $policy, $key);
         }
     }
 
     #[Test]
     public function an_unknown_language_tag_yields_no_settings(): void
     {
-        self::assertSame([], SettingsLoader::language('zz'));
+        self::assertSame([], SettingsLoader::language(SettingsLoader::packagePath(), 'zz'));
     }
 
     #[Test]
@@ -52,7 +68,7 @@ final class SettingsLoaderTest extends TestCase
         // The tag reaches this method from a runtime locale. Even though
         // LocaleResolver already constrains its shape, the loader refuses
         // separators itself rather than trusting its caller.
-        self::assertSame([], SettingsLoader::language('../policy'));
+        self::assertSame([], SettingsLoader::language(SettingsLoader::packagePath(), '../typography'));
     }
 
     #[Test]
@@ -132,5 +148,59 @@ final class SettingsLoaderTest extends TestCase
         } finally {
             unlink($path);
         }
+    }
+
+    #[Test]
+    public function extract_languages_is_additive_per_key_leaving_other_languages_untouched(): void
+    {
+        $parsed = [
+            'set_smart_quotes' => true,
+            'languages' => [
+                'cs' => ['set_smart_quotes_primary' => 'doubleGuillemets'],
+                'pl' => ['set_smart_quotes_primary' => 'doubleLow9'],
+            ],
+        ];
+
+        $languages = SettingsLoader::extractLanguages($parsed);
+
+        self::assertSame(['set_smart_quotes_primary' => 'doubleGuillemets'], $languages['cs']);
+        self::assertSame(['set_smart_quotes_primary' => 'doubleLow9'], $languages['pl']);
+    }
+
+    #[Test]
+    public function extract_languages_skips_a_sequence_shaped_entry(): void
+    {
+        // A malformed entry ("- foo\n- bar") must not survive into the map:
+        // it would reach the merge as an integer-keyed array, which — one
+        // layer up — becomes `$settings->{0}(...)` and fatals.
+        $parsed = [
+            'languages' => [
+                'cs' => ['set_smart_quotes' => true],
+                'xx' => ['foo', 'bar'],
+            ],
+        ];
+
+        $languages = SettingsLoader::extractLanguages($parsed);
+
+        self::assertArrayHasKey('cs', $languages);
+        self::assertArrayNotHasKey('xx', $languages);
+    }
+
+    #[Test]
+    public function extract_languages_yields_no_map_when_languages_itself_is_a_sequence(): void
+    {
+        self::assertSame([], SettingsLoader::extractLanguages(['languages' => ['foo', 'bar']]));
+    }
+
+    #[Test]
+    public function the_bundled_table_resolves_czech_quotes(): void
+    {
+        // Pins the package's own typography.yml table against a regression
+        // in the file-collapse itself, independent of the resolver/merge
+        // logic exercised in TypographyExtensionTest and LanguageTableTest.
+        self::assertSame(
+            'doubleLow9Reversed',
+            SettingsLoader::language(SettingsLoader::packagePath(), 'cs')['set_smart_quotes_primary'],
+        );
     }
 }

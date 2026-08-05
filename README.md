@@ -72,39 +72,67 @@ and similar markup, and is emitted unescaped.
 
 ## Configuration
 
-The package ships two things beyond the `Settings` class defaults:
+The package ships one bundled settings file — `typography.yml`, at the
+package root — beyond the `Settings` class defaults. It carries:
 
-- **A house policy** (`resources/policy.yml`) — settings that are a house
-  decision rather than a property of any one language (e.g. unit spacing on,
-  dewidowing off). Applied on every render, regardless of what you pass in.
-- **Eleven per-language tables** (`resources/languages/<tag>.yml`) — quote
-  styles, dash conventions, single-character word spacing, and other settings
-  that genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `en`, `fr`,
-  `ru`, `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver
-  (see above) via `LocaleResolver::candidates()`, which tries the
-  region/script-qualified tag first and falls back to the bare language — e.g.
-  `de_CH` tries `de-CH` then `de`. An unrecognised language yields no language
-  layer; the house policy still applies. Dutch and Portuguese are deliberately
-  not included: their quote conventions are not settled enough to ship (mixed
-  practice in Dutch; European vs. Brazilian Portuguese disagree) — see the
-  CHANGELOG for the full rationale. A missing table just means no language
-  layer, not a wrong one.
+- **A house policy** — top-level keys that are a house decision rather than a
+  property of any one language (e.g. unit spacing on, dewidowing off,
+  language-neutral smart-quote/dash defaults). Applied on every render,
+  regardless of what you pass in.
+- **Eleven per-language tables**, under its `languages:` key — quote styles,
+  dash conventions, single-character word spacing, and other settings that
+  genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `en`, `fr`, `ru`,
+  `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver (see above) via
+  `LocaleResolver::candidates()`, which tries the region/script-qualified tag
+  first and falls back to the bare language — e.g. `de_CH` tries `de-CH` then
+  `de`. An unrecognised language yields no language-specific overrides; the
+  house policy's own neutral defaults still apply. Dutch and Portuguese are
+  deliberately not included: their quote conventions are not settled enough to
+  ship (mixed practice in Dutch; European vs. Brazilian Portuguese disagree) —
+  see the CHANGELOG for the full rationale.
 
-Every key in your own YAML file or array — and in the two layers above —
-becomes a method call on
+A project's own settings — passed as `$config`, either a YAML file path or a
+PHP array — use the **exact same shape**: global keys at the top level, plus
+an optional `languages:` map keyed by language tag. This is what makes a
+single-language override possible without touching any other language:
+
+```yaml
+# typography.yml — project override, layered on top of the house policy and
+# the resolved language table
+set_hyphenation: true   # this project wants CSS-independent hyphenation, applies to every language
+
+languages:
+  cs:
+    set_smart_quotes_primary: "doubleGuillemets"   # this project prefers «…» for Czech specifically
+    # every other cs setting (secondary quotes, single-character word
+    # spacing, dashes, …) still comes from the package's own cs table —
+    # languages: is merged per key, not replaced wholesale
+  # every other language (en, de, pl, …) is completely unaffected by the cs
+  # override above
+```
+
+Every key — in your own file/array, and in the bundled table — becomes a
+method call on
 [PHP-Typography's `Settings` class](https://github.com/mundschenk-at/php-typography/blob/main/src/class-settings.php).
+A key that doesn't match a `Settings` method (a typo, or a key from a newer
+PHP-Typography version this package hasn't caught up to) is silently skipped
+rather than fataling the render; `languages` itself is never passed through —
+it's a document-structure key, not a setting.
 
 ### Merge order
 
 Later layers win on a per-key basis; a layer that doesn't touch a key leaves
-the earlier value in place.
+the earlier value in place. `languages:` overrides are themselves additive
+per key — an entry only needs to state what departs from the global section
+above it.
 
 ```
 1. PHP-Typography's own Settings(true) defaults
-2. resources/policy.yml           — house policy, every render
-3. resources/languages/<tag>.yml  — resolved from the locale resolver
-4. $config                        — your constructor argument (path or array)
-5. |typography({ ... })           — per-call arguments
+2. typography.yml (bundled)            — global section, house policy, every render
+3. typography.yml (bundled) languages  — resolved from the locale resolver
+4. $config                             — your constructor argument, global section
+5. $config languages                   — your constructor argument, resolved from the locale resolver
+6. |typography({ ... })                — per-call arguments
 ```
 
 You do **not** need to write a settings file just to typeset one of the
@@ -113,12 +141,6 @@ produce a correct result. Write your own file (or array) only when your
 project departs from the house style: a different quote character, hyphenation
 switched on, a language the table doesn't cover, or a one-off override that
 should apply to every call rather than just one.
-
-```yaml
-# typography.yml — project override, layered on top of the house policy
-# and the resolved language table
-set_hyphenation: TRUE   # this project wants CSS-independent hyphenation
-```
 
 ## What's not included
 

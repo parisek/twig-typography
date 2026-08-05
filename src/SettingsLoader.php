@@ -7,7 +7,8 @@ namespace Parisek\Twig;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Reads the package's YAML resources, memoised per path.
+ * Reads YAML settings files, memoised per path, and splits a parsed
+ * document into its global section and its `languages:` map.
  *
  * Every filesystem access in the package lives here, which is what lets
  * {@see LocaleResolver} stay pure and lets the merge order in
@@ -15,6 +16,11 @@ use Symfony\Component\Yaml\Yaml;
  *
  * Memoisation is not an optimisation detail — the settings are resolved on
  * EVERY `|typography` call, and a page renders the filter hundreds of times.
+ *
+ * The package's own bundled table and a consuming project's settings file
+ * share one shape: global keys at the top level, an optional `languages:`
+ * map keyed by language tag. This class is the single place that both
+ * understand that shape.
  */
 final class SettingsLoader
 {
@@ -22,34 +28,98 @@ final class SettingsLoader
     private static array $memo = [];
 
     /**
-     * House policy: the settings that are a house decision rather than a
-     * property of the language.
-     *
-     * @return array<string, mixed>
+     * The package's own bundled settings file — house policy plus the
+     * per-language tables.
      */
-    public static function policy(): array
+    public static function packagePath(): string
     {
-        return self::file(__DIR__ . '/../resources/policy.yml');
+        return __DIR__ . '/../typography.yml';
     }
 
     /**
-     * One language-table entry. Unknown tags yield `[]` — a site in a language
-     * the table has never heard of must keep rendering, just without a
-     * language layer.
+     * The global section of a settings file — every top-level key except
+     * `languages`, which is not a real PHP-Typography setting.
      *
      * @return array<string, mixed>
      */
-    public static function language(string $tag): array
+    public static function global(string $path): array
+    {
+        return self::extractGlobal(self::file($path));
+    }
+
+    /**
+     * One language-table entry from a settings file's `languages:` map.
+     * Unknown tags, and tags absent from the map, yield `[]` — a site in a
+     * language the table has never heard of must keep rendering, just
+     * without a language layer.
+     *
+     * @return array<string, mixed>
+     */
+    public static function language(string $path, string $tag): array
+    {
+        return self::extractLanguage(self::file($path), $tag);
+    }
+
+    /**
+     * Strip the `languages:` key from an already-parsed settings document.
+     * Public: shared with {@see TypographyExtension} for the array-config
+     * case, which does not go through {@see file()}.
+     *
+     * @param  array<string, mixed> $parsed
+     * @return array<string, mixed>
+     */
+    public static function extractGlobal(array $parsed): array
+    {
+        unset($parsed['languages']);
+
+        return $parsed;
+    }
+
+    /**
+     * The validated `languages:` map from an already-parsed settings
+     * document. Malformed shapes (a sequence instead of a map, either at the
+     * `languages:` level or within one entry) degrade to no map / no entry,
+     * matching the degrade-not-throw discipline the rest of this class uses
+     * for file content.
+     *
+     * @param  array<string, mixed>                $parsed
+     * @return array<string, array<string, mixed>>
+     */
+    public static function extractLanguages(array $parsed): array
+    {
+        $languages = $parsed['languages'] ?? [];
+        if (!is_array($languages) || self::hasIntegerKey($languages)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($languages as $tag => $entry) {
+            if (is_string($tag) && is_array($entry) && !self::hasIntegerKey($entry)) {
+                $result[$tag] = $entry;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * One entry of an already-parsed document's `languages:` map, tag
+     * validated the same way {@see language()} validates it for a file path.
+     *
+     * @param  array<string, mixed> $parsed
+     * @return array<string, mixed>
+     */
+    public static function extractLanguage(array $parsed, string $tag): array
     {
         // The tag derives from a runtime locale, so it is untrusted input even
-        // though LocaleResolver already constrains its shape. Refusing path
-        // separators here keeps that guarantee local to the method that builds
-        // the path, rather than depending on a caller staying correct.
+        // though LocaleResolver already constrains its shape. Refusing an
+        // unexpected shape here keeps that guarantee local to this method
+        // rather than depending on a caller staying correct.
         if (preg_match('/^[A-Za-z]{2,3}(-[A-Za-z]{2,4})?$/', $tag) !== 1) {
             return [];
         }
 
-        return self::file(__DIR__ . '/../resources/languages/' . $tag . '.yml');
+        return self::extractLanguages($parsed)[$tag] ?? [];
     }
 
     /**

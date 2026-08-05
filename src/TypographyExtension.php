@@ -13,8 +13,8 @@ final class TypographyExtension extends AbstractExtension
 {
     /**
      * Either a YAML file path (string) or an associative settings array.
-     * Resolved into a flat settings array via {@see loadDefaults()} once
-     * per filter invocation.
+     * Resolved into a flat settings array via {@see loadProjectGlobal()} and
+     * {@see resolveProjectLanguageSettings()} once per filter invocation.
      *
      * @var string|array<string, mixed>
      */
@@ -36,8 +36,8 @@ final class TypographyExtension extends AbstractExtension
      *   - array  []|[...] → use the array as settings directly; no filesystem I/O.
      *
      * A non-existent file path resolves to no overrides. It no longer means
-     * "library defaults": the house policy in `resources/policy.yml` applies
-     * regardless, which is the point of this layer.
+     * "library defaults": the house policy in the package's bundled
+     * `typography.yml` applies regardless, which is the point of this layer.
      *
      * @param (callable(): string)|null $locale_resolver
      *   Supplies the current locale. Absent means no language layer.
@@ -76,13 +76,32 @@ final class TypographyExtension extends AbstractExtension
 
         $settings = new Settings($use_defaults);
 
+        $packagePath = SettingsLoader::packagePath();
+        $candidates = $this->localeCandidates();
+
         $merged = array_merge(
-            SettingsLoader::policy(),
-            $this->resolveLanguageSettings(),
-            $this->loadDefaults(),
+            SettingsLoader::global($packagePath),
+            $this->resolveLanguageSettings($packagePath, $candidates),
+            $this->loadProjectGlobal(),
+            $this->resolveProjectLanguageSettings($candidates),
             $arguments,
         );
         foreach ($merged as $setting => $value) {
+            // `languages` is not a real Settings method — it is a document
+            // structure key, already stripped by SettingsLoader::global()/
+            // extractGlobal() for every layer above. This guard only covers
+            // per-call $arguments, which bypass that stripping.
+            if ($setting === 'languages') {
+                continue;
+            }
+
+            // An unrecognised key must not fatal the render — e.g. a typo'd
+            // option name, or a key meant for a future PHP-Typography
+            // version this package hasn't caught up to yet.
+            if (!method_exists($settings, $setting)) {
+                continue;
+            }
+
             $settings->{$setting}($value);
         }
 
@@ -108,20 +127,24 @@ final class TypographyExtension extends AbstractExtension
     }
 
     /**
-     * The language layer for the current call.
+     * The ordered candidate tags for the current call's locale (most specific
+     * first), or `[]` when there is no resolver, it throws, or it returns an
+     * unusable locale.
      *
-     * Resolved per invocation, not cached on the instance: the host
-     * application can change the active locale between two renders within a
-     * single request, and a value captured at construction would typeset the
-     * second render in the first one's language.
+     * Resolved once per {@see applyTypography()} call, not cached on the
+     * instance: the host application can change the active locale between two
+     * renders within a single request, and a value captured at construction
+     * would typeset the second render in the first one's language. Computed
+     * once per call (not once per layer) so the package table and the
+     * project table are resolved against the same locale.
      *
      * A resolver that throws degrades to no language layer. It runs inside the
      * render path, so a failing language backend must cost typography, not the
      * whole page.
      *
-     * @return array<string, mixed>
+     * @return array<int, string>
      */
-    private function resolveLanguageSettings(): array
+    private function localeCandidates(): array
     {
         if ($this->localeResolver === null) {
             return [];
@@ -133,8 +156,21 @@ final class TypographyExtension extends AbstractExtension
             return [];
         }
 
-        foreach (LocaleResolver::candidates($locale) as $tag) {
-            $settings = SettingsLoader::language($tag);
+        return LocaleResolver::candidates($locale);
+    }
+
+    /**
+     * The first candidate tag present in the `languages:` map of the settings
+     * file at $path, or `[]` when none match — matching {@see LocaleResolver}'s
+     * "first tag present wins" contract.
+     *
+     * @param  array<int, string>   $candidates
+     * @return array<string, mixed>
+     */
+    private function resolveLanguageSettings(string $path, array $candidates): array
+    {
+        foreach ($candidates as $tag) {
+            $settings = SettingsLoader::language($path, $tag);
             if ($settings !== []) {
                 return $settings;
             }
@@ -144,9 +180,9 @@ final class TypographyExtension extends AbstractExtension
     }
 
     /**
-     * Resolve the constructor argument into a flat settings array.
+     * The global section of the constructor's `$config` argument.
      *
-     * The string (file) case is delegated to {@see SettingsLoader::file()}
+     * The string (file) case is delegated to {@see SettingsLoader::global()}
      * so it gets the same guards as every other resource the package reads:
      * a missing/unreadable/malformed/non-map file degrades to no overrides
      * instead of throwing.
@@ -162,7 +198,7 @@ final class TypographyExtension extends AbstractExtension
      *
      * @return array<string, mixed>
      */
-    private function loadDefaults(): array
+    private function loadProjectGlobal(): array
     {
         if (is_array($this->config)) {
             if (SettingsLoader::hasIntegerKey($this->config)) {
@@ -171,13 +207,45 @@ final class TypographyExtension extends AbstractExtension
                 );
             }
 
-            return $this->config;
+            return SettingsLoader::extractGlobal($this->config);
         }
 
         if ($this->config === '') {
             return [];
         }
 
-        return SettingsLoader::file($this->config);
+        return SettingsLoader::global($this->config);
+    }
+
+    /**
+     * The `languages:` layer of the constructor's `$config` argument, for the
+     * current call's locale candidates. Mirrors {@see loadProjectGlobal()}'s
+     * string-vs-array handling.
+     *
+     * @param  array<int, string>   $candidates
+     * @return array<string, mixed>
+     */
+    private function resolveProjectLanguageSettings(array $candidates): array
+    {
+        if ($candidates === []) {
+            return [];
+        }
+
+        if (is_array($this->config)) {
+            foreach ($candidates as $tag) {
+                $settings = SettingsLoader::extractLanguage($this->config, $tag);
+                if ($settings !== []) {
+                    return $settings;
+                }
+            }
+
+            return [];
+        }
+
+        if ($this->config === '') {
+            return [];
+        }
+
+        return $this->resolveLanguageSettings($this->config, $candidates);
     }
 }

@@ -32,16 +32,16 @@ final class TypographyExtensionTest extends TestCase
 
         $result = $extension->applyTypography('Hello world.');
 
-        // The house policy (resources/policy.yml) now applies underneath
-        // PHP-Typography's own Settings(true) defaults even with no project
-        // config at all, and it deliberately turns dewidow and hyphenation
-        // off (they fight responsive layouts and CSS `hyphens: auto`
-        // respectively — see policy.yml). So clean input that the raw
-        // library defaults would have transformed (NBSP dewidow, seeded
-        // soft-hyphens) now survives unchanged. This is the intended policy
-        // taking effect, not a regression: before this task a bug (the
-        // "11-project bug") meant no house policy applied at all and every
-        // consumer inherited the library's raw opinions unfiltered.
+        // The house policy (typography.yml, global section) now applies
+        // underneath PHP-Typography's own Settings(true) defaults even with
+        // no project config at all, and it deliberately turns dewidow and
+        // hyphenation off (they fight responsive layouts and CSS
+        // `hyphens: auto` respectively — see typography.yml). So clean input
+        // that the raw library defaults would have transformed (NBSP
+        // dewidow, seeded soft-hyphens) now survives unchanged. This is the
+        // intended policy taking effect, not a regression: before this task
+        // a bug (the "11-project bug") meant no house policy applied at all
+        // and every consumer inherited the library's raw opinions unfiltered.
         self::assertSame('Hello world.', $result);
     }
 
@@ -196,15 +196,20 @@ final class TypographyExtensionTest extends TestCase
     }
 
     #[Test]
-    public function use_defaults_false_skips_library_defaults(): void
+    public function use_defaults_false_still_applies_the_house_policy(): void
     {
+        // $use_defaults only controls whether PHP-Typography's own
+        // Settings(true) seeds its built-in defaults. It does not gate the
+        // package's house policy (typography.yml global section), which
+        // configures the Settings object explicitly regardless — including
+        // the language-neutral smart-quote defaults. So even with
+        // $use_defaults=false and an empty project config, quotes are still
+        // smart-quoted.
         $extension = new TypographyExtension([]);
 
-        // With $use_defaults=false and an empty config, no settings are configured at all
-        // — straight quotes survive.
         $result = $extension->applyTypography('"x"', [], false);
 
-        self::assertSame('"x"', $result);
+        self::assertStringContainsString('“x”', $result);
     }
 
     #[Test]
@@ -377,5 +382,85 @@ final class TypographyExtensionTest extends TestCase
         });
 
         self::assertNotSame('', $extension->applyTypography('Plain text.'));
+    }
+
+    #[Test]
+    public function a_project_language_override_leaves_other_languages_untouched(): void
+    {
+        // A project's own settings file/array uses the same flat
+        // `languages:` shape as the package's bundled table. Overriding one
+        // language there must not disturb another language that the project
+        // never mentions — that only-flat-config-existed limitation is the
+        // whole reason this design exists.
+        $locale = 'cs_CZ';
+        $extension = new TypographyExtension(
+            ['languages' => ['cs' => ['set_smart_quotes_primary' => 'doubleGuillemets']]],
+            static function () use (&$locale): string {
+                return $locale;
+            },
+        );
+
+        $czech = $extension->applyTypography('Řekl "ahoj" dnes.');
+        $locale = 'pl_PL';
+        $polish = $extension->applyTypography('Powiedział "cześć" dzisiaj.');
+
+        // Czech: project override wins over the package's own „…“ table.
+        self::assertStringContainsString('«', $czech);
+        self::assertStringNotContainsString('„', $czech);
+        // Polish: untouched by the project config, still the package's „…”.
+        self::assertStringContainsString('„cześć”', $polish);
+    }
+
+    #[Test]
+    public function a_partial_language_entry_inherits_the_rest_from_global(): void
+    {
+        // The project entry for `cs` only restates the quote character; it
+        // never mentions `set_single_character_word_spacing`. That key must
+        // still come through — from the package's own `cs` table entry,
+        // merged underneath the project layer key-by-key, not replaced
+        // wholesale.
+        $extension = new TypographyExtension(
+            ['languages' => ['cs' => ['set_smart_quotes_primary' => 'doubleGuillemets']]],
+            static fn(): string => 'cs_CZ',
+        );
+
+        $result = $extension->applyTypography('Bydlí v Praze a řekl "ahoj".');
+
+        self::assertStringContainsString('«', $result);
+        self::assertStringContainsString('v&nbsp;Praze', $result);
+    }
+
+    #[Test]
+    public function a_language_absent_from_the_project_table_runs_on_global_alone(): void
+    {
+        // The project settings only cover `cs`; a request rendered in
+        // English must fall through to the package's own `en` table (and,
+        // failing that, the global neutral defaults) rather than being
+        // affected by the project's `cs`-only override.
+        $extension = new TypographyExtension(
+            ['languages' => ['cs' => ['set_smart_quotes_primary' => 'doubleGuillemets']]],
+            static fn(): string => 'en_US',
+        );
+
+        $result = $extension->applyTypography('He said "hi" today.');
+
+        self::assertStringContainsString('“hi”', strip_tags($result));
+        self::assertStringNotContainsString('«', $result);
+    }
+
+    #[Test]
+    public function an_unknown_settings_key_is_skipped_and_surrounding_settings_still_apply(): void
+    {
+        // `set_typo` (a typo'd option name — no such method on Settings) must
+        // not fatal the render, and the valid sibling key in the same call
+        // must still take effect.
+        $extension = new TypographyExtension();
+
+        $result = $extension->applyTypography('He said "hi".', [
+            'set_typo' => true,
+            'set_smart_quotes_primary' => 'doubleLow9',
+        ]);
+
+        self::assertStringContainsString('„hi”', strip_tags($result));
     }
 }
