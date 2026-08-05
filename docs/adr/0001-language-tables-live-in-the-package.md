@@ -1,4 +1,8 @@
-# 0001. Language tables live in the package, not in each project
+# 1. Language tables live in the package, not in each project
+
+- **Status:** Accepted
+- **Date:** 2026-08-05
+- **Deciders:** @parisek
 
 ## Context
 

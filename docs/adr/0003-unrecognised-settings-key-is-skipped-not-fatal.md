@@ -1,4 +1,8 @@
-# 0003. An unrecognised settings key is skipped, not fatal
+# 3. An unrecognised settings key is skipped, not fatal
+
+- **Status:** Accepted
+- **Date:** 2026-08-05
+- **Deciders:** @parisek
 
 ## Context
 

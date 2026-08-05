@@ -1,4 +1,8 @@
-# 0002. `languages:` merges per key, and a regional entry layers on its base language
+# 2. `languages:` merges per key, and a regional entry layers on its base language
+
+- **Status:** Accepted
+- **Date:** 2026-08-05
+- **Deciders:** @parisek
 
 ## Context
 
