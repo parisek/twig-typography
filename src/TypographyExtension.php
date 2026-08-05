@@ -23,9 +23,10 @@ final class TypographyExtension extends AbstractExtension
 
     /**
      * @var (callable(): string)|null
-     *   Returns the locale to typeset for, e.g. `cs_CZ`. Injected rather than
-     *   detected so the package stays free of any CMS. Invoked on EVERY filter
-     *   call — see {@see resolveLanguageSettings()}.
+     *   Returns the locale to typeset for, e.g. `cs_CZ`. The locale is injected
+     *   rather than detected, so the package carries no knowledge of its host
+     *   application. Invoked on EVERY filter call — see
+     *   {@see resolveLanguageSettings()}.
      */
     private $localeResolver;
 
@@ -110,10 +111,10 @@ final class TypographyExtension extends AbstractExtension
     /**
      * The language layer for the current call.
      *
-     * Resolved per invocation, not cached on the instance: WPML and
-     * `switch_to_locale()` can change the language between two renders in the
-     * same request, and a value captured at construction would typeset the
-     * second one in the first one's language.
+     * Resolved per invocation, not cached on the instance: the host
+     * application can change the active locale between two renders within a
+     * single request, and a value captured at construction would typeset the
+     * second render in the first one's language.
      *
      * A resolver that throws degrades to no language layer. It runs inside the
      * render path, so a failing language backend must cost typography, not the

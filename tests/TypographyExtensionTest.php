@@ -303,8 +303,9 @@ final class TypographyExtensionTest extends TestCase
     #[Test]
     public function a_throwing_resolver_does_not_break_rendering(): void
     {
-        // The resolver runs inside the render path. A CMS that raises during
-        // language detection must degrade to no language layer, not 500.
+        // The resolver runs inside the render path. A host application that
+        // raises during locale detection must degrade to no language layer,
+        // not 500.
         $extension = new TypographyExtension('', static function (): string {
             throw new \RuntimeException('language backend down');
         });
