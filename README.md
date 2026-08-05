@@ -13,7 +13,7 @@ glyphs, ordinal suffixes, math symbols, CSS hooks for styling.
 
 - PHP 8.3+
 - Twig 3 or 4
-- Symfony YAML 6, 7, or 8 (always installed as a hard dependency; invoked at runtime on every construction to parse the bundled `typography.yml`, plus again whenever the constructor receives a project `.yml` file path)
+- Symfony YAML 6, 7, or 8 (always installed as a hard dependency, parsing the bundled `typography.yml` — memoised per path, so it costs at most one parse per file no matter how many times the filter runs — plus, when the constructor receives a project `.yml` file path, that file too. The package's own settings apply on every render either way; parsing is lazy, applying is not)
 
 ## Installation
 
@@ -83,10 +83,12 @@ package root — beyond the `Settings` class defaults. It carries:
   dash conventions, single-character word spacing, and other settings that
   genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `de-CH`, `en`,
   `en-GB`, `fr`, `ru`, `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver (see above) via
-  `LocaleResolver::candidates()`, which tries the region/script-qualified tag
-  first and falls back to the bare language — e.g. `de_CH` tries `de-CH` then
-  `de`. An unrecognised language yields no language-specific overrides; the
-  house policy's own neutral defaults still apply. Dutch and Portuguese are
+  `LocaleResolver::candidates()`, which resolves the region/script-qualified
+  tag *and* the bare language, then layers them — e.g. `de_CH` merges `de-CH`
+  over `de` over the global section, so `de-CH` only needs to state the keys
+  that genuinely differ from `de`. An unrecognised language yields no
+  language-specific overrides; the house policy's own neutral defaults still
+  apply. Dutch and Portuguese are
   deliberately not included: their quote conventions are not settled enough to
   ship (mixed practice in Dutch; European vs. Brazilian Portuguese disagree) —
   see the CHANGELOG for the full rationale.
@@ -124,14 +126,18 @@ it's a document-structure key, not a setting.
 Later layers win on a per-key basis; a layer that doesn't touch a key leaves
 the earlier value in place. `languages:` overrides are themselves additive
 per key — an entry only needs to state what departs from the global section
-above it.
+above it. That extends across the language/region boundary too: for a
+regional locale like `de_CH`, step 3 below resolves as its *own* two-layer
+merge — `de` first, `de-CH` layered on top — before the rest of the chain
+continues, so a regional entry only needs the keys that differ from its
+base language.
 
 ```
 1. PHP-Typography's own Settings(true) defaults
 2. typography.yml (bundled)            — global section, house policy, every render
-3. typography.yml (bundled) languages  — resolved from the locale resolver
+3. typography.yml (bundled) languages  — resolved from the locale resolver, base language then region
 4. $config                             — your constructor argument, global section
-5. $config languages                   — your constructor argument, resolved from the locale resolver
+5. $config languages                   — your constructor argument, resolved the same base-then-region way
 6. |typography({ ... })                — per-call arguments
 ```
 

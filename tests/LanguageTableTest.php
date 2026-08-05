@@ -157,10 +157,13 @@ final class LanguageTableTest extends TestCase
     }
 
     #[Test]
-    public function swiss_german_uses_guillemets_not_the_de_low9_pair(): void
+    public function swiss_german_overrides_quotes_on_top_of_the_de_base_table(): void
     {
-        // Regional table beats the bare-language fallback: `de_CH` must
-        // resolve to `de-CH`'s «…», not fall through to `de`'s „…“.
+        // `de-CH` restates both quote settings (it needs a different pair
+        // outright), so this only pins the override half of the merge.
+        // {@see project_config_regional_entry_inherits_and_overrides()}
+        // below pins the inheritance half against a table this test file
+        // fully controls.
         $extension = new TypographyExtension('', static fn(): string => 'de_CH');
 
         $result = $extension->applyTypography('Er sagte "hallo" heute.');
@@ -169,14 +172,65 @@ final class LanguageTableTest extends TestCase
     }
 
     #[Test]
-    public function british_english_uses_a_spaced_en_dash_where_american_uses_an_unspaced_em_dash(): void
+    public function british_english_keeps_the_base_languages_ordinal_suffix_but_overrides_its_dash_style(): void
     {
+        // This is the regression the region/base merge fix exists for: `en-GB`
+        // only states a dash-style override, so `set_smart_ordinal_suffix`
+        // (set only on bare `en`) must still reach it. Before the fix,
+        // resolving `en_GB` picked the *first* candidate present in the
+        // table outright — `en-GB` alone — and `en`'s ordinal setting never
+        // applied, so British English silently rendered plain "1st" text
+        // where American English wrapped it `<sup>`.
         $american = new TypographyExtension('', static fn(): string => 'en_US');
         $british  = new TypographyExtension('', static fn(): string => 'en_GB');
 
-        $input = 'Wait for it - here it comes.';
+        $ordinalInput = 'Order: 1st.';
+        self::assertStringContainsString('<sup class="ordinal">st</sup>', $american->applyTypography($ordinalInput));
+        self::assertStringContainsString('<sup class="ordinal">st</sup>', $british->applyTypography($ordinalInput), 'en-GB should inherit set_smart_ordinal_suffix from en');
 
-        self::assertStringContainsString('—', $american->applyTypography($input));
-        self::assertStringContainsString(' – ', $british->applyTypography($input));
+        $dashInput = 'Wait for it - here it comes.';
+        self::assertStringContainsString('—', $american->applyTypography($dashInput));
+        self::assertStringContainsString(' – ', $british->applyTypography($dashInput));
+    }
+
+    #[Test]
+    public function project_config_regional_entry_inherits_and_overrides(): void
+    {
+        // Same merge fix, exercised through the constructor's own `$config`
+        // array — {@see \Parisek\Twig\TypographyExtension::resolveProjectLanguageSettings()}
+        // — rather than the bundled table, with settings this test controls
+        // end to end so the "inherits" half doesn't depend on any bundled
+        // language's diacritic/hyphenation dictionary actually being wired
+        // up (several are declared but inert — a separate, pre-existing gap
+        // outside this fix's scope).
+        //
+        // `xx` (base) sets ordinals on and Curled quotes; `xx-YY` (region)
+        // restates only the quotes. Before the fix, resolving `xx_YY` picked
+        // `xx-YY` alone and `xx`'s ordinal setting was lost.
+        $config = [
+            'languages' => [
+                'xx' => [
+                    'set_smart_quotes_primary' => 'doubleCurled',
+                    'set_smart_ordinal_suffix' => true,
+                ],
+                'xx-YY' => [
+                    'set_smart_quotes_primary' => 'doubleLow9',
+                ],
+            ],
+        ];
+
+        $base = new TypographyExtension($config, static fn(): string => 'xx');
+        $region = new TypographyExtension($config, static fn(): string => 'xx_YY');
+
+        $input = 'She said "hi". Order: 1st.';
+        $baseResult = $base->applyTypography($input);
+        $regionResult = $region->applyTypography($input);
+
+        self::assertStringContainsString('“hi”', $baseResult);
+        self::assertStringContainsString('<sup class="ordinal">st</sup>', $baseResult);
+
+        self::assertStringContainsString('„hi', $regionResult, 'xx-YY should apply its own quote override');
+        self::assertStringNotContainsString('“hi”', $regionResult);
+        self::assertStringContainsString('<sup class="ordinal">st</sup>', $regionResult, 'xx-YY should inherit set_smart_ordinal_suffix from xx, not just its own restated keys');
     }
 }

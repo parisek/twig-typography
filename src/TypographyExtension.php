@@ -184,23 +184,32 @@ final class TypographyExtension extends AbstractExtension
     }
 
     /**
-     * The first candidate tag present in the `languages:` map of the settings
-     * file at $path, or `[]` when none match — matching {@see LocaleResolver}'s
-     * "first tag present wins" contract.
+     * The merged `languages:` entries for every candidate tag present in the
+     * settings file at $path, folded least-specific to most-specific.
+     *
+     * `$candidates` arrives most-specific-first (e.g. `['en-GB', 'en']`), so
+     * this walks it in reverse and layers each present entry on top of the
+     * last: `en` first, then `en-GB` merged over it. A regional entry is
+     * therefore additive over its base language, exactly like every other
+     * layer in the merge order — it only needs to state the keys that
+     * genuinely differ, and a key it doesn't restate still comes from the
+     * bare-language entry beneath it. An earlier "first tag present wins"
+     * version of this method silently dropped the base language's settings
+     * whenever a regional entry existed at all (e.g. `en-GB` losing `en`'s
+     * `set_smart_ordinal_suffix`), which contradicted the documented
+     * "additive, merged per key" contract for `languages:`.
      *
      * @param  array<int, string>   $candidates
      * @return array<string, mixed>
      */
     private function resolveLanguageSettings(string $path, array $candidates): array
     {
-        foreach ($candidates as $tag) {
-            $settings = SettingsLoader::language($path, $tag);
-            if ($settings !== []) {
-                return $settings;
-            }
+        $merged = [];
+        foreach (array_reverse($candidates) as $tag) {
+            $merged = array_merge($merged, SettingsLoader::language($path, $tag));
         }
 
-        return [];
+        return $merged;
     }
 
     /**
@@ -256,14 +265,12 @@ final class TypographyExtension extends AbstractExtension
         }
 
         if (is_array($this->config)) {
-            foreach ($candidates as $tag) {
-                $settings = SettingsLoader::extractLanguage($this->config, $tag);
-                if ($settings !== []) {
-                    return $settings;
-                }
+            $merged = [];
+            foreach (array_reverse($candidates) as $tag) {
+                $merged = array_merge($merged, SettingsLoader::extractLanguage($this->config, $tag));
             }
 
-            return [];
+            return $merged;
         }
 
         if ($this->config === '') {

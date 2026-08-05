@@ -8,6 +8,14 @@
 # to state the keys that genuinely vary; anything it omits still falls back
 # to the global value above.
 #
+# A regional entry (`de-CH`, `en-GB`, tag `<language>-<REGION>`) layers on
+# top of its own bare-language entry the same way, not in place of it: for
+# `de_CH`, `de-CH` is merged over `de`, which is merged over the global
+# section. A regional entry therefore only needs the keys that genuinely
+# differ from its base language — everything else, e.g. `de`'s
+# `set_diacritic_language`, still applies to `de-CH` unless the regional
+# entry restates it.
+#
 # A project's own settings file/array uses this exact same shape (global keys
 # at top level, optional `languages:` map) — see README.md "Configuration".
 
@@ -90,14 +98,16 @@ languages:
     set_smart_quotes_primary: "doubleLow9Reversed"
     set_smart_quotes_secondary: "singleLow9Reversed"
 
-  # Swiss German. Quotes «…», nested ‹…› — guillemets, not the „…“ pair
-  # `de` uses. Bundeskanzlei Schreibweisungen (Swiss federal writing
-  # instructions): "In amtlichen Texten des Bundes sind Guillemets
-  # vorgeschrieben, deutsche Anführungszeichen sind nicht zulässig." No
-  # French inner spacing (`doubleGuillemets`, not `doubleGuillemetsFrench`)
-  # — that convention is French-specific, not Swiss-German.
+  # Swiss German. A regional entry layers on top of its base language (`de`
+  # here), so it states only what differs — `set_diacritic_language: "de"`
+  # still applies, inherited, not restated. Quotes «…», nested ‹…› —
+  # guillemets, not the „…“ pair `de` uses. Bundeskanzlei Schreibweisungen
+  # (Swiss federal writing instructions): "In amtlichen Texten des Bundes
+  # sind Guillemets vorgeschrieben, deutsche Anführungszeichen sind nicht
+  # zulässig." No French inner spacing (`doubleGuillemets`, not
+  # `doubleGuillemetsFrench`) — that convention is French-specific, not
+  # Swiss-German.
   de-CH:
-    set_diacritic_language: "de"
     set_smart_quotes_primary: "doubleGuillemets"
     set_smart_quotes_secondary: "singleGuillemets"
 
@@ -149,14 +159,12 @@ languages:
   # Polish and Hungarian, not like Czech and German, despite opening the same
   # way — verified against pravopis.hr (Institut za hrvatski jezik i
   # jezikoslovlje, the national orthography authority), rule 8.16
-  # "Navodnici": „...” is the primary pair (»...« is a print-only
-  # alternate, not the nested form). CLDR's hr.xml disagrees (quotationEnd
-  # U+201C, i.e. doubleLow9Reversed) but that field carries no
-  # Croatian-specific citation and looks like an uncorrected copy of the
-  # Czech/German pattern — the same mix-up this table has already caught
-  # twice (cs, hu). Nested quotes are ‘...’ — rule 8.17 "Polunavodnici"
-  # gives the pair literally as (‘...’), i.e. singleCurled, not a low-9
-  # variant.
+  # "Navodnici": „...” is the primary pair (»...« is listed as an alternate,
+  # not the nested form). CLDR's hr.xml disagrees (quotationEnd U+201C, i.e.
+  # doubleLow9Reversed); this table follows pravopis.hr as the
+  # Croatian-specific authority. Nested quotes are ‘...’ — rule 8.17
+  # "Polunavodnici" gives the pair literally as (‘...’), i.e. singleCurled,
+  # not a low-9 variant.
   hr:
     set_diacritic_language: "hr"
     set_smart_quotes_primary: "doubleLow9"

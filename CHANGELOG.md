@@ -71,6 +71,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Swiss German had no table of its own and silently fell back to the `de`
   pair (`„…“`), which Swiss orthography does not use. Added `de-CH`
   (`«…»`, nested `‹…›`), per the Bundeskanzlei Schreibweisungen.
+- A regional entry (`de-CH`, `en-GB`) replaced its base language's entry
+  outright instead of layering on top of it, contradicting the documented
+  "additive, merged per key" contract for `languages:`. `en-GB` lost `en`'s
+  `set_smart_ordinal_suffix` this way, silently. Region now merges over base
+  over global, so a regional entry only needs the keys that genuinely
+  differ — `de-CH` no longer has to restate `de`'s settings it doesn't
+  change.
 
 ### Upgrading from 1.2.x
 
