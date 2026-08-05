@@ -1,5 +1,10 @@
 # Twig Typography Extension
 
+[![Packagist Version](https://img.shields.io/packagist/v/parisek/twig-typography.svg)](https://packagist.org/packages/parisek/twig-typography)
+[![PHP Version](https://img.shields.io/packagist/php-v/parisek/twig-typography.svg)](https://packagist.org/packages/parisek/twig-typography)
+[![Tests](https://github.com/parisek/twig-typography/actions/workflows/tests.yml/badge.svg)](https://github.com/parisek/twig-typography/actions/workflows/tests.yml)
+[![License](https://img.shields.io/packagist/l/parisek/twig-typography.svg)](https://github.com/parisek/twig-typography/blob/main/LICENSE.txt)
+
 Twig adapter for [PHP-Typography](https://github.com/mundschenk-at/php-typography) —
 smart quotes, dashes, ellipses, hyphenation, widow protection, fraction
 glyphs, ordinal suffixes, math symbols, CSS hooks for styling.
