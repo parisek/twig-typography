@@ -26,6 +26,10 @@ final class LocaleResolverTest extends TestCase
             'empty string'             => ['', []],
             'whitespace only'          => ['   ', []],
             'garbage'                  => ['!!', []],
+            'path traversal region'    => ['en_/etc/passwd', ['en']],
+            'control char region'      => ["en_\0evil", ['en']],
+            'punctuation region'       => ['en_!!', ['en']],
+            'valid language bad region' => ['en_1', ['en']],
         ];
     }
 

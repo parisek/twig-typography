@@ -17,11 +17,11 @@ final class LocaleResolver
      * Ordered most-specific-first: `de_CH` yields `de-CH` then `de`, so a
      * region file can be added later without changing any caller.
      *
-     * Accepts every shape the consumers actually produce — WordPress emits
-     * POSIX (`cs_CZ`), Drupal emits a bare language id (`cs`), and a hand-set
-     * value may arrive as BCP-47 (`de-CH`) or carry an encoding suffix
-     * (`cs_CZ.UTF-8`). Anything unusable yields `[]`, which the caller reads
-     * as "no language layer" rather than an error.
+     * Accepts every shape a runtime locale can arrive in — POSIX with an
+     * underscore (`cs_CZ`), a bare language id (`cs`), BCP-47 with a hyphen
+     * (`de-CH`), or a value carrying an encoding or modifier suffix
+     * (`cs_CZ.UTF-8`, `de_DE@euro`). Anything unusable yields `[]`, which the
+     * caller reads as "no language layer" rather than an error.
      *
      * @return array<int, string>
      */
@@ -49,8 +49,19 @@ final class LocaleResolver
         // the table is keyed by what typography actually varies on, and no
         // shipped entry is finer-grained than script or region.
         $region = $parts[1];
-        $region = strlen($region) === 2 ? strtoupper($region) : ucfirst(strtolower($region));
+        if (preg_match('/^[a-zA-Z]{2}$/', $region) === 1) {
+            return [$language . '-' . strtoupper($region), $language];
+        }
 
-        return [$language . '-' . $region, $language];
+        if (preg_match('/^[a-zA-Z]{4}$/', $region) === 1) {
+            return [$language . '-' . ucfirst(strtolower($region)), $language];
+        }
+
+        // The second subtag isn't a real region (2 letters) or script (4
+        // letters) — e.g. path fragments, control characters, punctuation.
+        // A caller later interpolates the tag into a filename, so anything
+        // that isn't a real tag must not be propagated; the language alone
+        // is still a perfectly usable candidate.
+        return [$language];
     }
 }
