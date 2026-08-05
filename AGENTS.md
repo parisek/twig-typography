@@ -19,11 +19,12 @@ A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
 - `typography.yml` — bundled marker file. Empty by design since 1.2.0 — library `Settings(true)` defaults apply unless the consumer passes a YAML path or PHP array to the constructor.
 - `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php` + `tests/fixtures/` (sample configs).
-- `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
+- `.github/workflows/tests.yml` + `dependency-review.yml` + `commitlint.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
+- `docs/adr/` is the one thing kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/` (planning scratch is local-only; ADRs are worth keeping). `.gitattributes` excludes `/docs` from the published Composer archive either way.
 
 Constructor accepts three shapes: `''` (library defaults), `'/path/to.yml'` (filesystem YAML), `[]` (PHP array, no filesystem I/O). Missing path falls back silently to library defaults — `parisek/styleguide` relies on this when `typography_config` resolves to a not-yet-created project file.
 
-PHP ^8.3. Twig ^3.0 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI). Symfony YAML 6/7/8.
+PHP ^8.3. Twig ^3.27 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI). Symfony YAML 6/7/8.
 
 ## Commands
 
@@ -64,7 +65,8 @@ PHPStan only runs on the stable jobs (`if: matrix.stable`) — the alpha job's p
 ## Per-PR conventions
 
 - **CHANGELOG.md**: every behavior-affecting PR adds an entry under `## [Unreleased]` with [Keep a Changelog](https://keepachangelog.com/) categories.
-- **Squash-merge PRs** into `main` so the merge commit subject ends with `(#N)`. The tag history (`v1.0`, `v1.0.1`–`v1.2.0`) is built on this convention.
+- **Squash-merge PRs** into `main` so the merge commit subject ends with `(#N)`. The tag history (`v1.0`, `v1.0.1`–`v1.2.0`) is built on this convention. `allow_merge_commit`/`allow_rebase_merge` are disabled repo-wide, `squash_merge_commit_title: PR_TITLE` — the PR title mechanically becomes the commit subject on `main`.
+- **PR title must be a Conventional Commit** (`commitlint.yml`, `amannn/action-semantic-pull-request`): one of `feat fix docs chore ci test refactor qa`, scope optional/freeform.
 - Default branch is `main`, not `master`.
 
 ## Release process — DO NOT bypass
@@ -91,7 +93,7 @@ Level 8 (max). The package is small enough — ~95 LOC of production code — th
 
 ## Twig 4 forward-compat
 
-The package supports `twig/twig: ^3.0 || ^4.0`. Twig 4's known breaking changes that could matter:
+The package supports `twig/twig: ^3.27 || ^4.0`. Twig 4's known breaking changes that could matter:
 - `Twig\Markup` constructor stricter on `string|null` (we pass `string|\Stringable` and cast; no impact).
 - Several deprecated extension hooks removed (we only implement `getFilters()`; no impact).
 
