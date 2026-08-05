@@ -6,6 +6,46 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-05
+
+### Changed
+
+- **Rendered output changes.** The package now ships the house typographic
+  policy in `resources/policy.yml` and applies it on every render, including
+  where a consumer passes a settings path that does not exist. Previously that
+  case fell through to php-typography's own defaults. The API is unchanged and
+  additive, but review a page before deploying: ampersands lose their
+  `<span class="amp">` wrapper, widow protection is off, and quotes follow the
+  resolved language.
+
+### Added
+
+- Per-locale language tables for `cs`, `de`, `en`, `fr`, `hr`, `hu`, `nl`,
+  `pl`, `pt`, `ru`, `sk`, `sl`, `tr` — selected by an optional
+  `$locale_resolver` constructor argument, invoked on every filter call so a
+  language switch mid-request is honoured.
+- `LocaleResolver` and `SettingsLoader`, both public.
+
+### Fixed
+
+- Czech and German rendered `„…”`, the Polish pair, instead of `„…“`. The
+  setting that produced it was the only one available to a consumer, so every
+  project carrying it was wrong the same way.
+
+### Deprecated
+
+- The bundled `typography.yml` marker. It is kept and still resolvable, but
+  nothing loads it; `resources/policy.yml` replaced it. Removal in 2.0.0.
+
+### Upgrading from 1.2.x
+
+- Pass a locale resolver to the constructor (`new TypographyExtension('',
+  fn () => determine_locale())`) to get per-language typesetting instead of
+  the single hardcoded pair.
+- Drop the project's own `typography.yml` unless it carries a deliberate
+  override — the package no longer reads it, and the house policy in
+  `resources/policy.yml` now applies by default.
+
 ## [1.2.3] - 2026-06-01
 
 ### Security
