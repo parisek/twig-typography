@@ -22,19 +22,30 @@ final class TypographyExtension extends AbstractExtension
     private string|array $config;
 
     /**
+     * @var (callable(): string)|null
+     *   Returns the locale to typeset for, e.g. `cs_CZ`. Injected rather than
+     *   detected so the package stays free of any CMS. Invoked on EVERY filter
+     *   call — see {@see resolveLanguageSettings()}.
+     */
+    private $localeResolver;
+
+    /**
      * @param string|array<string, mixed> $config
-     *   - string ''       → use the bundled marker `typography.yml` (library defaults).
+     *   - string ''       → no project overrides.
      *   - string '/path'  → load the YAML file at the given absolute path.
      *   - array  []|[...] → use the array as settings directly; no filesystem I/O.
      *
-     * A non-existent file path falls back silently to library defaults, preserving
-     * the 1.1.x behaviour that consumers (notably parisek/styleguide) rely on
-     * when their `typography_config` key resolves to a path the project hasn't
-     * created yet.
+     * A non-existent file path resolves to no overrides. It no longer means
+     * "library defaults": the house policy in `resources/policy.yml` applies
+     * regardless, which is the point of this layer.
+     *
+     * @param (callable(): string)|null $locale_resolver
+     *   Supplies the current locale. Absent means no language layer.
      */
-    public function __construct(string|array $config = '')
+    public function __construct(string|array $config = '', ?callable $locale_resolver = null)
     {
         $this->config = $config;
+        $this->localeResolver = $locale_resolver;
     }
 
     public function getFilters(): array
@@ -65,7 +76,12 @@ final class TypographyExtension extends AbstractExtension
 
         $settings = new Settings($use_defaults);
 
-        $merged = array_merge($this->loadDefaults(), $arguments);
+        $merged = array_merge(
+            SettingsLoader::policy(),
+            $this->resolveLanguageSettings(),
+            $this->loadDefaults(),
+            $arguments,
+        );
         foreach ($merged as $setting => $value) {
             $settings->{$setting}($value);
         }
@@ -92,6 +108,42 @@ final class TypographyExtension extends AbstractExtension
     }
 
     /**
+     * The language layer for the current call.
+     *
+     * Resolved per invocation, not cached on the instance: WPML and
+     * `switch_to_locale()` can change the language between two renders in the
+     * same request, and a value captured at construction would typeset the
+     * second one in the first one's language.
+     *
+     * A resolver that throws degrades to no language layer. It runs inside the
+     * render path, so a failing language backend must cost typography, not the
+     * whole page.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveLanguageSettings(): array
+    {
+        if ($this->localeResolver === null) {
+            return [];
+        }
+
+        try {
+            $locale = ($this->localeResolver)();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        foreach (LocaleResolver::candidates($locale) as $tag) {
+            $settings = SettingsLoader::language($tag);
+            if ($settings !== []) {
+                return $settings;
+            }
+        }
+
+        return [];
+    }
+
+    /**
      * Resolve the constructor argument into a flat settings array.
      *
      * @return array<string, mixed>
@@ -102,7 +154,10 @@ final class TypographyExtension extends AbstractExtension
             return $this->config;
         }
 
-        $path = $this->config !== '' ? $this->config : __DIR__ . '/../typography.yml';
+        $path = $this->config;
+        if ($path === '') {
+            return [];
+        }
 
         if (!is_file($path)) {
             return [];
