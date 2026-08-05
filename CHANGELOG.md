@@ -6,8 +6,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.3.0] - 2026-08-05
-
 ### Changed
 
 - **Rendered output changes.** The package now ships a house typographic
