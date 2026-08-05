@@ -36,7 +36,12 @@ final class LocaleResolver
         }
 
         $language = strtolower($parts[0]);
-        if (preg_match('/^[a-z]{2,3}$/', $language) !== 1) {
+        // The `D` modifier is required: PCRE's `$` matches before a single
+        // trailing `\n` even without the `m` modifier, so `"US\n"` would
+        // otherwise satisfy `/^[a-z]{2,3}$/` and let a control character
+        // ride through into a returned tag. `D` makes `$` mean "true end of
+        // subject". All three anchored patterns in this method need it.
+        if (preg_match('/^[a-z]{2,3}$/D', $language) !== 1) {
             return [];
         }
 
@@ -49,11 +54,11 @@ final class LocaleResolver
         // the table is keyed by what typography actually varies on, and no
         // shipped entry is finer-grained than script or region.
         $region = $parts[1];
-        if (preg_match('/^[a-zA-Z]{2}$/', $region) === 1) {
+        if (preg_match('/^[a-zA-Z]{2}$/D', $region) === 1) {
             return [$language . '-' . strtoupper($region), $language];
         }
 
-        if (preg_match('/^[a-zA-Z]{4}$/', $region) === 1) {
+        if (preg_match('/^[a-zA-Z]{4}$/D', $region) === 1) {
             return [$language . '-' . ucfirst(strtolower($region)), $language];
         }
 

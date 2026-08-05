@@ -30,6 +30,11 @@ final class LocaleResolverTest extends TestCase
             'control char region'      => ["en_\0evil", ['en']],
             'punctuation region'       => ['en_!!', ['en']],
             'valid language bad region' => ['en_1', ['en']],
+            // PCRE `$` matches before one trailing `\n` even without `/m` —
+            // without the `D` modifier this would let a control character
+            // ride through into the returned tag.
+            'trailing newline in region'   => ["en_US\n_X", ['en']],
+            'trailing newline in language' => ["en\n_US", []],
         ];
     }
 
