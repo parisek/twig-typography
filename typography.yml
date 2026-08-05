@@ -85,19 +85,44 @@ languages:
     set_single_character_word_spacing: true
 
   # German (Germany/Austria). Quotes „…“, same pair as Czech.
-  # Swiss German uses «…» and would be a `de-CH` entry, added when a project needs it.
   de:
     set_diacritic_language: "de"
     set_smart_quotes_primary: "doubleLow9Reversed"
     set_smart_quotes_secondary: "singleLow9Reversed"
 
-  # English. Quotes “…” and ‘…’, em-dash without surrounding spaces.
+  # Swiss German. Quotes «…», nested ‹…› — guillemets, not the „…“ pair
+  # `de` uses. Bundeskanzlei Schreibweisungen (Swiss federal writing
+  # instructions): "In amtlichen Texten des Bundes sind Guillemets
+  # vorgeschrieben, deutsche Anführungszeichen sind nicht zulässig." No
+  # French inner spacing (`doubleGuillemets`, not `doubleGuillemetsFrench`)
+  # — that convention is French-specific, not Swiss-German.
+  de-CH:
+    set_diacritic_language: "de"
+    set_smart_quotes_primary: "doubleGuillemets"
+    set_smart_quotes_secondary: "singleGuillemets"
+
+  # English, American convention (the fleet default). Quotes "…" and '…',
+  # unspaced em-dash. Committed to one coherent regional story rather than
+  # mixing American dashes with British hyphenation, which is what the bare
+  # `en` entry did before this table existed: `set_diacritic_language`
+  # ("en-GB") and `set_smart_dashes_style` ("traditionalUS", American)
+  # disagreed on the variant. Bare `en` now means American throughout;
+  # `en-GB` below carries the British difference, mirroring how `de`/`de-CH`
+  # split.
   en:
-    set_diacritic_language: "en-GB"
+    set_diacritic_language: "en-US"
     set_smart_quotes_primary: "doubleCurled"
     set_smart_quotes_secondary: "singleCurled"
     set_smart_dashes_style: "traditionalUS"
     set_smart_ordinal_suffix: true            # 1st / 2nd / 3rd — English only
+
+  # English, British convention. Same quotes and ordinal handling as `en`;
+  # differs only in hyphenation dictionary and dash style — British usage
+  # favours a spaced en-dash over the American unspaced em-dash (Butterick's
+  # Practical Typography; also Oxford/Hart's Rules house style).
+  en-GB:
+    set_diacritic_language: "en-GB"
+    set_smart_dashes_style: "international"
 
   # French. Guillemets with non-breaking spaces inside, and NBSP before the
   # high punctuation (: ; ! ?) — the one language that needs
@@ -120,17 +145,28 @@ languages:
     set_smart_quotes_primary: "doubleLow9Reversed"
     set_smart_quotes_secondary: "singleLow9Reversed"
 
-  # Croatian. Quotes „…“.
+  # Croatian. Quotes „…” — low-9 opening, RIGHT-double closing. Closes like
+  # Polish and Hungarian, not like Czech and German, despite opening the same
+  # way — verified against pravopis.hr (Institut za hrvatski jezik i
+  # jezikoslovlje, the national orthography authority), rule 8.16
+  # "Navodnici": „...” is the primary pair (»...« is a print-only
+  # alternate, not the nested form). CLDR's hr.xml disagrees (quotationEnd
+  # U+201C, i.e. doubleLow9Reversed) but that field carries no
+  # Croatian-specific citation and looks like an uncorrected copy of the
+  # Czech/German pattern — the same mix-up this table has already caught
+  # twice (cs, hu). Nested quotes are ‘...’ — rule 8.17 "Polunavodnici"
+  # gives the pair literally as (‘...’), i.e. singleCurled, not a low-9
+  # variant.
   hr:
     set_diacritic_language: "hr"
-    set_smart_quotes_primary: "doubleLow9Reversed"
-    set_smart_quotes_secondary: "singleLow9Reversed"
+    set_smart_quotes_primary: "doubleLow9"
+    set_smart_quotes_secondary: "singleCurled"
 
   # Hungarian. Quotes „…” — low-9 opening, RIGHT-double closing.
   # Closes like Polish, not like Czech and German, despite opening the same way.
   # Nested quotes in Hungarian are genuinely a guillemet pair »…«, not a single-quote
   # variant — CLDR / Hungarian Academy orthography. Don't "fix" this to singleLow9:
-  # that renders ‚belso' (wrong), not »belso« (correct).
+  # that renders ‚belso’ (wrong), not »belso« (correct).
   hu:
     set_diacritic_language: "hu"
     set_smart_quotes_primary: "doubleLow9"

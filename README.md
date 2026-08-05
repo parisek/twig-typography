@@ -13,7 +13,7 @@ glyphs, ordinal suffixes, math symbols, CSS hooks for styling.
 
 - PHP 8.3+
 - Twig 3 or 4
-- Symfony YAML 6, 7, or 8 (always installed as a hard dependency; only invoked at runtime when the constructor receives a `.yml` file path)
+- Symfony YAML 6, 7, or 8 (always installed as a hard dependency; invoked at runtime on every construction to parse the bundled `typography.yml`, plus again whenever the constructor receives a project `.yml` file path)
 
 ## Installation
 
@@ -79,10 +79,10 @@ package root — beyond the `Settings` class defaults. It carries:
   property of any one language (e.g. unit spacing on, dewidowing off,
   language-neutral smart-quote/dash defaults). Applied on every render,
   regardless of what you pass in.
-- **Eleven per-language tables**, under its `languages:` key — quote styles,
+- **Thirteen per-language tables**, under its `languages:` key — quote styles,
   dash conventions, single-character word spacing, and other settings that
-  genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `en`, `fr`, `ru`,
-  `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver (see above) via
+  genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `de-CH`, `en`,
+  `en-GB`, `fr`, `ru`, `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver (see above) via
   `LocaleResolver::candidates()`, which tries the region/script-qualified tag
   first and falls back to the bare language — e.g. `de_CH` tries `de-CH` then
   `de`. An unrecognised language yields no language-specific overrides; the
@@ -136,7 +136,7 @@ above it.
 ```
 
 You do **not** need to write a settings file just to typeset one of the
-eleven covered languages — pass a locale resolver and steps 1–3 already
+thirteen covered languages — pass a locale resolver and steps 1–3 already
 produce a correct result. Write your own file (or array) only when your
 project departs from the house style: a different quote character, hyphenation
 switched on, a language the table doesn't cover, or a one-off override that

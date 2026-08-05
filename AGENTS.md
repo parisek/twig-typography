@@ -19,7 +19,7 @@ A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
 - `src/SettingsLoader.php` — all filesystem access; splits a parsed settings document into its global section and `languages:` map.
 - `src/LocaleResolver.php` — pure, I/O-free locale → candidate-tag ordering (`de_CH` → `de-CH`, `de`).
-- `typography.yml` — bundled house policy + the eleven per-language tables, under `languages:`. Applied on every render regardless of what the consumer passes. A project's own `$config` (file or array) uses the same shape.
+- `typography.yml` — bundled house policy + the thirteen per-language tables, under `languages:`. Applied on every render regardless of what the consumer passes. A project's own `$config` (file or array) uses the same shape.
 - `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php`, `LanguageTableTest.php`, `SettingsLoaderTest.php`, `LocaleResolverTest.php` + `tests/fixtures/` (sample configs).
 - `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
 - `docs/adr/` may be kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/`. `.gitattributes` excludes `/docs` from the published Composer archive either way.
@@ -98,7 +98,7 @@ Level 8 (max). The package is small enough that level 8 stays clean without effo
 
 ## Symfony YAML constraint
 
-`symfony/yaml: ^6.0 || ^7.0 || ^8.0`. The package never deeply integrates with the Symfony container — `Yaml::parse()` is the only call site, in `loadDefaults()`. Widening to a new Symfony major is essentially free if `Yaml::parse()` keeps its signature; verify with a one-off `composer require symfony/yaml:^N` in a scratch checkout before bumping.
+`symfony/yaml: ^6.0 || ^7.0 || ^8.0`. The package never deeply integrates with the Symfony container — `Yaml::parse()` is the only call site, in `SettingsLoader::file()`. Widening to a new Symfony major is essentially free if `Yaml::parse()` keeps its signature; verify with a one-off `composer require symfony/yaml:^N` in a scratch checkout before bumping.
 
 `parisek/styleguide` pulls both this package and `parisek/twig-attribute`. Make sure the Symfony YAML constraint here doesn't lag behind that downstream — otherwise the styleguide gets pinned to an older Symfony major than its own constraint would allow.
 

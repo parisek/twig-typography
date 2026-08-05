@@ -21,7 +21,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   table.** A project's own settings (a YAML file path or a PHP array, passed
   as `$config`) can carry an optional `languages:` map alongside its global
   keys, keyed by language tag — the same shape the bundled `typography.yml`
-  uses for its own eleven tables. This is what makes a single-language
+  uses for its own thirteen tables. This is what makes a single-language
   override possible: a project can override, say, just Czech's primary quote
   character without touching any other language and without restating the
   rest of Czech's own settings — `languages:` overrides are merged per key,
@@ -30,16 +30,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   render.** Previously any key without a matching method on
   PHP-Typography's `Settings` class (a typo'd option name, for instance)
   raised `Error: Call to undefined method Settings::...()` and took the whole
-  page down. It is now checked against `Settings` via `method_exists()` and
-  silently ignored — no logging, no exception — while every other key in the
+  page down. It is now checked against `Settings` via a `set_`-prefix check
+  plus `is_callable()` (not `method_exists()`, which also matches
+  non-`set_` and non-public members) and silently ignored — no logging, no exception — while every other key in the
   same call still applies. This also closes the path that made the
   `languages:` map itself unsafe to introduce: without this fix, passing it
   through to `Settings` unfiltered would have hit the identical fatal.
 
 ### Added
 
-- Per-locale language tables for `cs`, `de`, `en`, `fr`, `hr`, `hu`, `pl`,
-  `ru`, `sk`, `sl`, `tr`, bundled in `typography.yml`'s `languages:` map —
+- Per-locale language tables for `cs`, `de`, `de-CH`, `en`, `en-GB`, `fr`,
+  `hr`, `hu`, `pl`, `ru`, `sk`, `sl`, `tr`, bundled in `typography.yml`'s
+  `languages:` map —
   selected by an optional `$locale_resolver` constructor argument, invoked on
   every filter call so a language switch mid-request is honoured. Dutch and
   Portuguese are deliberately not included yet — Dutch quote practice is
@@ -59,6 +61,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   override just one language without it applying to every language — the
   settings file predated the per-language table entirely. The `languages:`
   shape above closes this.
+- Croatian rendered `„…“`, the Czech/German pair, instead of `„…”`. Fixed
+  against pravopis.hr (Institut za hrvatski jezik i jezikoslovlje) rule 8.16;
+  nested quotes corrected from a low-9 variant to `‘…’` per rule 8.17.
+- `en` mixed American dashes (`set_smart_dashes_style: "traditionalUS"`) with
+  British hyphenation (`set_diacritic_language: "en-GB"`). `en` now commits to
+  American throughout; a new `en-GB` table carries the British dash
+  convention (spaced en-dash) on top of the shared quote/ordinal settings.
+- Swiss German had no table of its own and silently fell back to the `de`
+  pair (`„…“`), which Swiss orthography does not use. Added `de-CH`
+  (`«…»`, nested `‹…›`), per the Bundeskanzlei Schreibweisungen.
 
 ### Upgrading from 1.2.x
 

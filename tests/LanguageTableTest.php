@@ -33,7 +33,7 @@ final class LanguageTableTest extends TestCase
             'ru' => ['ru_RU', 'Он сказал "привет" сегодня.', '«привет»'],
             'sk' => ['sk_SK', 'Povedal "ahoj" dnes.', '„ahoj“'],
             'sl' => ['sl_SI', 'Rekel je "zdravo" danes.', '„zdravo“'],
-            'hr' => ['hr_HR', 'Rekao je "bok" danas.', '„bok“'],
+            'hr' => ['hr_HR', 'Rekao je "bok" danas.', '„bok”'],
             'hu' => ['hu_HU', 'Azt mondta "szia" ma.', '„szia”'],
             'tr' => ['tr_TR', 'Bugün "merhaba" dedi.', '“merhaba”'],
         ];
@@ -77,7 +77,7 @@ final class LanguageTableTest extends TestCase
             'ru' => ['ru_RU', 'Он сказал "сегодня \'привет\' снова".', '„привет“'],
             'sk' => ['sk_SK', 'Povedal "dnes \'ahoj\' znova".', '‚ahoj‘'],
             'sl' => ['sl_SI', 'Rekel je "danes \'zdravo\' spet".', '‚zdravo‘'],
-            'hr' => ['hr_HR', 'Rekao je "danas \'bok\' opet".', '‚bok‘'],
+            'hr' => ['hr_HR', 'Rekao je "danas \'bok\' opet".', '‘bok’'],
             'hu' => ['hu_HU', 'Azt mondta "ma \'szia\' ismét".', '»szia«'],
             'tr' => ['tr_TR', 'Bugün "yine \'merhaba\' dedi".', '‘merhaba’'],
         ];
@@ -154,5 +154,29 @@ final class LanguageTableTest extends TestCase
         $result = $extension->applyTypography('Kuća u gradu.');
 
         self::assertStringNotContainsString('u&nbsp;gradu', $result);
+    }
+
+    #[Test]
+    public function swiss_german_uses_guillemets_not_the_de_low9_pair(): void
+    {
+        // Regional table beats the bare-language fallback: `de_CH` must
+        // resolve to `de-CH`'s «…», not fall through to `de`'s „…“.
+        $extension = new TypographyExtension('', static fn(): string => 'de_CH');
+
+        $result = $extension->applyTypography('Er sagte "hallo" heute.');
+
+        self::assertStringContainsString('«hallo»', strip_tags($result));
+    }
+
+    #[Test]
+    public function british_english_uses_a_spaced_en_dash_where_american_uses_an_unspaced_em_dash(): void
+    {
+        $american = new TypographyExtension('', static fn(): string => 'en_US');
+        $british  = new TypographyExtension('', static fn(): string => 'en_GB');
+
+        $input = 'Wait for it - here it comes.';
+
+        self::assertStringContainsString('—', $american->applyTypography($input));
+        self::assertStringContainsString(' – ', $british->applyTypography($input));
     }
 }
