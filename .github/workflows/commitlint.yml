@@ -1,10 +1,11 @@
 name: Lint PR Title
 
-# Enforces Conventional Commits on the PR title. PRs are squash-merged with the
-# PR title as the commit subject (see AGENTS.md § Per-PR conventions), so the
-# title is what git history — and any future tooling that reads it — actually
-# gets. Same-repo PRs only, so plain `pull_request` (no secrets) is enough;
-# no untrusted code is checked out.
+# Enforces Conventional Commits on the PR title. Repo settings only allow
+# squash-merge (allow_merge_commit / allow_rebase_merge are both disabled)
+# with squash_merge_commit_title: PR_TITLE, so the PR title is *mechanically*
+# the commit subject that lands on `main` — not just a habit. Same-repo PRs
+# only, so plain `pull_request` (no secrets) is enough; no untrusted code is
+# checked out.
 #
 # Only the PR title is linted, never past commits: `git log` already carries
 # non-conventional subjects from before this rule existed (e.g. "Beta",
@@ -14,6 +15,7 @@ name: Lint PR Title
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -28,10 +30,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # Allowed types — mirrors what `git log` actually shows in this
-          # repo's history (feat/fix/docs/chore/ci/test + the project's own
-          # `qa` type for aggregate code-quality commits). Deliberately
-          # narrower than the Angular preset: no perf/build/revert/style —
-          # add one only once a real commit needs it.
+          # repo's history (feat/fix/docs/chore/ci/test/refactor + the
+          # project's own `qa` type for aggregate code-quality commits, e.g.
+          # de78795, 65959e2). Deliberately narrower than the Angular preset:
+          # no perf/build/revert/style — add one only once a real commit
+          # needs it.
           types: |
             feat
             fix
@@ -39,6 +42,7 @@ jobs:
             chore
             ci
             test
+            refactor
             qa
           # Scope is optional and freeform in this repo's history
           # (fix(typography), fix(languages), fix(ci), fix(test) alongside
