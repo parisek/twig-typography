@@ -67,21 +67,50 @@ final class SettingsLoader
 
         $settings = [];
         if (is_file($path)) {
-            $contents = file_get_contents($path);
-            if ($contents !== false) {
-                try {
+            try {
+                // Suppressed: an unreadable file raises an E_WARNING here in
+                // the default (non-strict) case, which the `$contents !==
+                // false` check below already handles. The surrounding `try`
+                // covers the strict case, where a host application that
+                // promotes warnings to exceptions turns this into a
+                // \Throwable instead.
+                $contents = @file_get_contents($path);
+                if ($contents !== false) {
                     $parsed = Yaml::parse($contents);
-                    if (is_array($parsed)) {
+                    if (is_array($parsed) && !self::hasIntegerKey($parsed)) {
                         $settings = $parsed;
                     }
-                } catch (\Throwable) {
-                    // Malformed YAML in a resource file degrades to "no
-                    // settings from this layer", matching the absent-file path.
-                    $settings = [];
                 }
+            } catch (\Throwable) {
+                // An unreadable file (warning promoted to exception by the
+                // host application) or malformed YAML both degrade to "no
+                // settings from this layer", matching the absent-file path.
+                $settings = [];
             }
         }
 
         return self::$memo[$path] = $settings;
+    }
+
+    /**
+     * True when the parsed array is a list/sequence rather than a map — a
+     * YAML document that starts with `-` instead of `key: value`. Consumers
+     * merge this array and then call it as a settings map keyed by option
+     * name, so an integer key must never survive this method: it would
+     * reach the merge as `$settings->{0}(...)` and fail there instead of
+     * degrading gracefully here. An empty array has no keys at all and is
+     * therefore not a sequence by this definition.
+     *
+     * @param array<array-key, mixed> $parsed
+     */
+    private static function hasIntegerKey(array $parsed): bool
+    {
+        foreach (array_keys($parsed) as $key) {
+            if (is_int($key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

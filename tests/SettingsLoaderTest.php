@@ -75,6 +75,48 @@ final class SettingsLoaderTest extends TestCase
     }
 
     #[Test]
+    public function a_sequence_yaml_document_yields_no_settings(): void
+    {
+        // A document that starts with "-" instead of "key: value" parses to
+        // an integer-keyed array. Consumers merge this array and then call it
+        // as a settings map, so an integer key must never survive this
+        // method: it would reach the merge as `$settings->{0}(...)` and fail
+        // there instead of degrading gracefully here.
+        $path = tempnam(sys_get_temp_dir(), 'typo') . '.yml';
+        file_put_contents($path, "- foo\n- bar\n");
+
+        try {
+            self::assertSame([], SettingsLoader::file($path));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    #[Test]
+    public function an_unreadable_file_yields_no_settings(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'typo') . '.yml';
+        file_put_contents($path, "set_dewidow: true\n");
+        chmod($path, 0000);
+
+        if (is_readable($path)) {
+            // Running as root, or on a filesystem that ignores the mode:
+            // the permission bit does not actually block reads here, so the
+            // scenario this test targets cannot be reproduced.
+            chmod($path, 0644);
+            unlink($path);
+            self::markTestSkipped('Process can read a 0000 file in this environment.');
+        }
+
+        try {
+            self::assertSame([], SettingsLoader::file($path));
+        } finally {
+            chmod($path, 0644);
+            unlink($path);
+        }
+    }
+
+    #[Test]
     public function a_file_is_read_once_and_memoised(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'typo') . '.yml';

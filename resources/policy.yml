@@ -9,7 +9,7 @@
 # per-call `|typography({...})` argument.
 
 # --- Diacritics --------------------------------------------------------------
-set_smart_diacritics: false      # auto-add háčky from a dictionary — unsafe on brand and product names
+set_smart_diacritics: false      # auto-add diacritics from a dictionary — unsafe on brand and product names
 
 # --- Spacing -----------------------------------------------------------------
 set_unit_spacing: true           # "5 kg" -> "5&nbsp;kg"
