@@ -40,11 +40,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Upgrading from 1.2.x
 
 - Pass a locale resolver to the constructor (`new TypographyExtension('',
-  fn () => determine_locale())`) to get per-language typesetting instead of
-  the single hardcoded pair.
-- Drop the project's own `typography.yml` unless it carries a deliberate
-  override — the package no longer reads it, and the house policy in
-  `resources/policy.yml` now applies by default.
+  fn () => $currentLocale)`) to get per-language typesetting instead of the
+  single hardcoded pair. The callable should return the locale currently
+  being rendered, in either `cs_CZ` or `cs` form.
+- The deprecated marker above is the package's own bundled file, not a
+  project's settings file — the two are unrelated. A project settings file
+  passed as the constructor's `$config` argument is still read and still
+  applied on top of the language table, exactly as before; it is simply
+  optional now rather than required. If it only restates what the house
+  policy already sets, it can go. If it carries a real override, keep it.
 
 ## [1.2.3] - 2026-06-01
 
