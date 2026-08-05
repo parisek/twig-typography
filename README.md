@@ -77,14 +77,18 @@ The package ships two things beyond the `Settings` class defaults:
 - **A house policy** (`resources/policy.yml`) — settings that are a house
   decision rather than a property of any one language (e.g. unit spacing on,
   dewidowing off). Applied on every render, regardless of what you pass in.
-- **Thirteen per-language tables** (`resources/languages/<tag>.yml`) — quote
+- **Eleven per-language tables** (`resources/languages/<tag>.yml`) — quote
   styles, dash conventions, single-character word spacing, and other settings
   that genuinely vary by language. Covers `cs`, `sk`, `pl`, `de`, `en`, `fr`,
-  `ru`, `sl`, `hr`, `hu`, `nl`, `pt`, `tr`. Looked up from the locale resolver
+  `ru`, `sl`, `hr`, `hu`, `tr`. Looked up from the locale resolver
   (see above) via `LocaleResolver::candidates()`, which tries the
   region/script-qualified tag first and falls back to the bare language — e.g.
   `de_CH` tries `de-CH` then `de`. An unrecognised language yields no language
-  layer; the house policy still applies.
+  layer; the house policy still applies. Dutch and Portuguese are deliberately
+  not included: their quote conventions are not settled enough to ship (mixed
+  practice in Dutch; European vs. Brazilian Portuguese disagree) — see the
+  CHANGELOG for the full rationale. A missing table just means no language
+  layer, not a wrong one.
 
 Every key in your own YAML file or array — and in the two layers above —
 becomes a method call on
@@ -104,7 +108,7 @@ the earlier value in place.
 ```
 
 You do **not** need to write a settings file just to typeset one of the
-thirteen covered languages — pass a locale resolver and steps 1–3 already
+eleven covered languages — pass a locale resolver and steps 1–3 already
 produce a correct result. Write your own file (or array) only when your
 project departs from the house style: a different quote character, hyphenation
 switched on, a language the table doesn't cover, or a one-off override that

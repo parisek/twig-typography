@@ -35,8 +35,6 @@ final class LanguageTableTest extends TestCase
             'sl' => ['sl_SI', 'Rekel je "zdravo" danes.', '„zdravo“'],
             'hr' => ['hr_HR', 'Rekao je "bok" danas.', '„bok“'],
             'hu' => ['hu_HU', 'Azt mondta "szia" ma.', '„szia”'],
-            'nl' => ['nl_NL', 'Hij zei "hallo" vandaag.', '“hallo”'],
-            'pt' => ['pt_PT', 'Ele disse "olá" hoje.', '“olá”'],
             'tr' => ['tr_TR', 'Bugün "merhaba" dedi.', '“merhaba”'],
         ];
     }
@@ -73,7 +71,7 @@ final class LanguageTableTest extends TestCase
         return [
             'cs' => ['cs_CZ', 'Řekl "dnes \'ahoj\' znovu".', '‚ahoj‘'],
             'de' => ['de_DE', 'Er sagte "heute \'hallo\' wieder".', '‚hallo‘'],
-            'pl' => ['pl_PL', 'Powiedział "dzisiaj \'cześć\' znowu".', '‚cześć’'],
+            'pl' => ['pl_PL', 'Powiedział "dzisiaj \'cześć\' znowu".', '«cześć»'],
             'en' => ['en_US', 'He said "today \'hi\' again".', '‘hi’'],
             'fr' => ['fr_FR', 'Il a dit "aujourd\'hui \'bonjour\' encore".', '‹bonjour›'],
             'ru' => ['ru_RU', 'Он сказал "сегодня \'привет\' снова".', '„привет“'],
@@ -81,8 +79,6 @@ final class LanguageTableTest extends TestCase
             'sl' => ['sl_SI', 'Rekel je "danes \'zdravo\' spet".', '‚zdravo‘'],
             'hr' => ['hr_HR', 'Rekao je "danas \'bok\' opet".', '‚bok‘'],
             'hu' => ['hu_HU', 'Azt mondta "ma \'szia\' ismét".', '»szia«'],
-            'nl' => ['nl_NL', 'Hij zei "vandaag \'hallo\' weer".', '‘hallo’'],
-            'pt' => ['pt_PT', 'Ele disse "hoje \'olá\' outra vez".', '‘olá’'],
             'tr' => ['tr_TR', 'Bugün "yine \'merhaba\' dedi".', '‘merhaba’'],
         ];
     }

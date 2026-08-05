@@ -2,8 +2,11 @@
 # This is the pair the whole fleet was accidentally using for Czech.
 set_diacritic_language: "pl"
 set_smart_quotes: true
+# Nested quotes in Polish are guillemets «…», not a single-quote variant —
+# PWN (Polish Language Council) orthography. Don't "fix" this to singleLow9:
+# that renders ‚cześć' (wrong), not «cześć» (correct).
 set_smart_quotes_primary: "doubleLow9"
-set_smart_quotes_secondary: "singleLow9"
+set_smart_quotes_secondary: "doubleGuillemets"
 set_smart_dashes: true
 set_smart_dashes_style: "international"
 set_single_character_word_spacing: true

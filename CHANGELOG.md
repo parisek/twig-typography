@@ -20,10 +20,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Per-locale language tables for `cs`, `de`, `en`, `fr`, `hr`, `hu`, `nl`,
-  `pl`, `pt`, `ru`, `sk`, `sl`, `tr` — selected by an optional
-  `$locale_resolver` constructor argument, invoked on every filter call so a
-  language switch mid-request is honoured.
+- Per-locale language tables for `cs`, `de`, `en`, `fr`, `hr`, `hu`, `pl`,
+  `ru`, `sk`, `sl`, `tr` — selected by an optional `$locale_resolver`
+  constructor argument, invoked on every filter call so a language switch
+  mid-request is honoured. Dutch and Portuguese are deliberately not included
+  yet — Dutch quote practice is genuinely mixed rather than settled, and
+  European vs. Brazilian Portuguese disagree on the primary pair, so a single
+  table would be wrong for one of them. A missing table degrades to no
+  language layer (house policy still applies), not a wrong one, so this is a
+  safe omission rather than a gap to work around.
 - `LocaleResolver` and `SettingsLoader`, both public.
 
 ### Fixed
