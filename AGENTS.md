@@ -19,7 +19,7 @@ A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/
 - `src/TypographyExtension.php` — single class, PSR-4 `Parisek\Twig\`. `final`, `declare(strict_types=1)`.
 - `typography.yml` — bundled marker file. Empty by design since 1.2.0 — library `Settings(true)` defaults apply unless the consumer passes a YAML path or PHP array to the constructor.
 - `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php` + `tests/fixtures/` (sample configs).
-- `.github/workflows/ci.yml` + `dependency-review.yml`.
+- `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
 
 Constructor accepts three shapes: `''` (library defaults), `'/path/to.yml'` (filesystem YAML), `[]` (PHP array, no filesystem I/O). Missing path falls back silently to library defaults — `parisek/styleguide` relies on this when `typography_config` resolves to a not-yet-created project file.
 
@@ -29,18 +29,27 @@ PHP ^8.3. Twig ^3.0 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI).
 
 ```bash
 composer install
-composer test           # phpunit
-composer phpstan        # static analysis — level 8
-composer cs             # php-cs-fixer dry-run (PER-CS)
-composer cs:fix         # apply code style
-composer normalize      # tidy composer.json
-composer audit          # dependency advisory scan
+composer check           # primary local code-quality check: cs, test, phpstan — run this before opening a PR
+```
+
+CI runs `composer check`'s three parts plus more on top: `composer validate --strict`, the advisory audit, the normalize check, and the full PHP/Twig/Symfony version matrix (see CI matrix below) — a green `composer check` doesn't guarantee green CI, it just clears the fast, deterministic part of it locally.
+
+Granular scripts, in case you need just one:
+
+```bash
+composer test            # phpunit
+composer phpstan         # static analysis — level 8
+composer cs              # php-cs-fixer dry-run (PER-CS)
+composer cs:fix          # apply code style
+composer normalize       # tidy composer.json
+composer normalize:check # composer.json normalization, check-only (what CI runs)
+composer audit           # dependency advisory scan
 composer validate --strict
 ```
 
 ## CI matrix
 
-Three jobs in `.github/workflows/ci.yml`:
+The `test` job in `.github/workflows/tests.yml` runs a 3-leg PHP/Twig/Symfony matrix (two more jobs, `composer` hygiene and `cs`, run alongside it — not part of this matrix):
 
 | PHP | Twig | Symfony | Required |
 |---|---|---|---|

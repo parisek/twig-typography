@@ -37,8 +37,14 @@
         }
     },
     "scripts": {
+        "check": [
+            "@cs",
+            "@test",
+            "@phpstan"
+        ],
         "cs": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
+        "normalize:check": "composer normalize --dry-run",
         "phpstan": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/phpunit"
     }

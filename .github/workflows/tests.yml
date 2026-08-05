@@ -63,7 +63,7 @@ jobs:
       - name: Audit dependencies for known advisories
         run: composer audit --abandoned=report
       - name: composer.json is normalized
-        run: composer normalize --dry-run
+        run: composer normalize:check
 
   cs:
     name: code style (PER-CS)
