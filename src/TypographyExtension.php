@@ -45,6 +45,24 @@ final class TypographyExtension extends AbstractExtension
     private array $settingsCache = [];
 
     /**
+     * The generation this instance's cache was filled in.
+     *
+     * A flush is process-wide in its effects — it drops the shared processor
+     * and the parsed-file memo, which every instance reads — so it has to be
+     * process-wide in its reach too. Without this, flushing one instance left
+     * every other instance answering from settings built out of the parse that
+     * was just thrown away: cleared for the flusher, stale for its siblings,
+     * and no way for a caller holding one instance to reach the others.
+     *
+     * A counter rather than a registry of instances, so nothing has to hold a
+     * reference to an extension that would otherwise be collectable.
+     */
+    private int $settingsCacheGeneration = 0;
+
+    /** Incremented by every {@see flushCaches()} call, for every instance. */
+    private static int $generation = 0;
+
+    /**
      * The processor, shared by every instance in the process.
      *
      * Static because it holds no settings — `process()` takes them per call —
@@ -99,6 +117,11 @@ final class TypographyExtension extends AbstractExtension
         }
 
         $string = (string) $string;
+
+        if ($this->settingsCacheGeneration !== self::$generation) {
+            $this->settingsCache = [];
+            $this->settingsCacheGeneration = self::$generation;
+        }
 
         $candidates = $this->localeCandidates();
         $cacheKey = $this->settingsCacheKey($candidates, $use_defaults, $arguments);
@@ -183,11 +206,70 @@ final class TypographyExtension extends AbstractExtension
      */
     private function settingsCacheKey(array $candidates, bool $useDefaults, array $arguments): ?string
     {
+        if (!self::isKeyable($arguments)) {
+            return null;
+        }
+
+        // Sorted so that two calls passing the same options in a different
+        // order share an entry. Ordering never changes the answer -- the
+        // setters are applied independently -- so treating it as significant
+        // would only cost a rebuild.
+        self::sortRecursive($arguments);
+
         try {
             return md5(json_encode([$candidates, $useDefaults, $arguments], JSON_THROW_ON_ERROR));
         } catch (\JsonException) {
             return null;
         }
+    }
+
+    /**
+     * Whether every value can be told apart by `json_encode()`.
+     *
+     * Asked explicitly, because `json_encode()` does not complain about the
+     * values that matter here: a Closure encodes as `{}` and so does any other
+     * object without `JsonSerializable`. Two different `PARSER_ERRORS_HANDLER`
+     * closures therefore produce an identical key, and the second call is
+     * served the first call's settings — carrying the first call's handler,
+     * which then runs on the second call's errors.
+     *
+     * An earlier version of this method relied on `JSON_THROW_ON_ERROR` to
+     * refuse such a call. It never fired, and the test written alongside it
+     * asserted the two calls were the same — passing because of the defect it
+     * was meant to exclude.
+     *
+     * @param array<mixed> $values
+     */
+    private static function isKeyable(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (is_object($value) || is_resource($value)) {
+                return false;
+            }
+
+            if (is_array($value) && !self::isKeyable($value)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Sort an array by key, at every depth.
+     *
+     * @param array<mixed> $values
+     */
+    private static function sortRecursive(array &$values): void
+    {
+        foreach ($values as &$value) {
+            if (is_array($value)) {
+                self::sortRecursive($value);
+            }
+        }
+        unset($value);
+
+        ksort($values);
     }
 
     /**
@@ -239,6 +321,8 @@ final class TypographyExtension extends AbstractExtension
     {
         $this->settingsCache = [];
         self::$typography = null;
+        ++self::$generation;
+        $this->settingsCacheGeneration = self::$generation;
 
         // The parsed files too, or this clears the settings objects and
         // rebuilds them from the same stale parse.

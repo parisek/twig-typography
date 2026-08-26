@@ -118,24 +118,42 @@ final class SettingsCacheTest extends TestCase
     }
 
     #[Test]
-    public function a_closure_argument_is_not_cached_and_still_works(): void
+    public function two_different_closures_do_not_share_a_cache_entry(): void
     {
-        // PARSER_ERRORS_HANDLER is documented as callable, and a closure has
-        // no stable serialization. Such a call skips the cache rather than
-        // sharing a key with a different closure.
+        // The defect this pins, and the reason the test that used to sit here
+        // was worthless. json_encode() does NOT refuse a Closure: it encodes
+        // one as {} and so does any other plain object. Two different
+        // PARSER_ERRORS_HANDLER closures therefore produced an identical key,
+        // and the second call was served the first call's settings -- carrying
+        // the FIRST call's handler, which then ran on the second call's errors.
+        //
+        // The old test asserted the two calls returned the same string and
+        // passed, because the handler it installed never ran. It asserted the
+        // defect and read it as proof the bypass worked.
         $extension = new TypographyExtension('', static fn(): string => 'cs_CZ');
 
-        $first = $extension->applyTypography(
-            'Řekl "ahoj" dnes.',
-            ['set_parser_errors_handler' => static fn(array $errors): array => $errors],
-        );
-        $second = $extension->applyTypography(
-            'Řekl "ahoj" dnes.',
-            ['set_parser_errors_handler' => static fn(array $errors): array => []],
-        );
+        $firstRan = false;
+        $secondRan = false;
 
-        self::assertStringContainsString('„', $first);
-        self::assertSame($first, $second);
+        // Malformed markup, so the handler is actually reached.
+        $extension->applyTypography('<p><div>x</p>', [
+            'set_parser_errors_handler' => static function (array $errors) use (&$firstRan): array {
+                $firstRan = true;
+
+                return [];
+            },
+        ]);
+
+        $extension->applyTypography('<p><div>x</p>', [
+            'set_parser_errors_handler' => static function (array $errors) use (&$secondRan): array {
+                $secondRan = true;
+
+                return [];
+            },
+        ]);
+
+        self::assertTrue($firstRan, 'the first handler must run');
+        self::assertTrue($secondRan, 'the second call must use ITS OWN handler, not the cached one');
     }
 
     #[Test]
@@ -168,6 +186,39 @@ final class SettingsCacheTest extends TestCase
             $afterFlush = $extension->applyTypography('Řekl "ahoj" dnes.');
             self::assertStringContainsString('“', $afterFlush);
             self::assertNotSame($first, $afterFlush, 'the flush let the changed file through');
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function flushing_one_instance_reaches_the_others(): void
+    {
+        // A flush is process-wide in its effects: it drops the shared
+        // processor and the parsed-file memo, which every instance reads. So
+        // it has to be process-wide in its reach. Without that, flushing one
+        // instance left its siblings answering from settings built out of the
+        // parse that had just been thrown away -- and a caller holding one
+        // instance had no way to reach the others.
+        $path = tempnam(sys_get_temp_dir(), 'typo') . '.yml';
+        file_put_contents($path, "languages:\n  cs:\n    set_smart_quotes_primary: doubleGuillemets\n");
+
+        try {
+            $one = new TypographyExtension($path, static fn(): string => 'cs_CZ');
+            $two = new TypographyExtension($path, static fn(): string => 'cs_CZ');
+
+            self::assertStringContainsString('»', $one->applyTypography('Řekl "ahoj" dnes.'));
+            self::assertStringContainsString('»', $two->applyTypography('Řekl "ahoj" dnes.'));
+
+            file_put_contents($path, "languages:\n  cs:\n    set_smart_quotes_primary: doubleCurled\n");
+
+            $one->flushCaches();
+
+            self::assertStringContainsString(
+                '“',
+                $two->applyTypography('Řekl "ahoj" dnes.'),
+                'the instance that was not flushed must not keep serving the old parse',
+            );
         } finally {
             @unlink($path);
         }
