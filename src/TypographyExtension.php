@@ -30,6 +30,32 @@ final class TypographyExtension extends AbstractExtension
     private $localeResolver;
 
     /**
+     * Settings objects already built for this instance, keyed by everything
+     * that can change one: the locale candidates, `$use_defaults`, and the
+     * per-call `$arguments`.
+     *
+     * Per instance rather than static, because `$config` belongs to the
+     * instance. Two extensions constructed with different project settings
+     * must not answer each other's cache, and keying on the config itself
+     * would mean serializing an arbitrary array on every call to save
+     * building one object.
+     *
+     * @var array<string, Settings>
+     */
+    private array $settingsCache = [];
+
+    /**
+     * The processor, shared by every instance in the process.
+     *
+     * Static because it holds no settings — `process()` takes them per call —
+     * and because the thing worth keeping is its lazily built fix registry.
+     * Two extension instances with different project config can share one
+     * processor safely, and building the registry twice would waste the
+     * saving on a host that registers more than one.
+     */
+    private static ?PHP_Typography $typography = null;
+
+    /**
      * @param string|array<string, mixed> $config
      *   - string ''       → no project overrides.
      *   - string '/path'  → load the YAML file at the given absolute path.
@@ -74,10 +100,16 @@ final class TypographyExtension extends AbstractExtension
 
         $string = (string) $string;
 
+        $candidates = $this->localeCandidates();
+        $cacheKey = $this->settingsCacheKey($candidates, $use_defaults, $arguments);
+
+        if ($cacheKey !== null && isset($this->settingsCache[$cacheKey])) {
+            return $this->process($string, $this->settingsCache[$cacheKey]);
+        }
+
         $settings = new Settings($use_defaults);
 
         $packagePath = SettingsLoader::packagePath();
-        $candidates = $this->localeCandidates();
 
         $merged = array_merge(
             SettingsLoader::global($packagePath),
@@ -129,25 +161,88 @@ final class TypographyExtension extends AbstractExtension
             $settings->{$setting}($value);
         }
 
-        // mundschenk-at/php-typography's latest release is v6.7.0 (Nov 2022),
-        // predating PHP 8.4. Its method signatures still use implicitly-nullable
-        // parameters (e.g. `callable $handler = null`), which PHP 8.4+ deprecates.
-        // With display_errors on, those E_DEPRECATED notices are written straight
-        // into the output stream and corrupt the rendered HTML. Suppress only
-        // E_DEPRECATED for the duration of the upstream call, then restore the
-        // previous level so genuine errors elsewhere are unaffected.
-        //
-        // This is purely a stopgap for the unmaintained 2022 dependency — drop it
-        // once php-typography ships the nullable type-hint fix and we bump to it:
-        // https://github.com/mundschenk-at/php-typography/pull/189
+        if ($cacheKey !== null) {
+            $this->settingsCache[$cacheKey] = $settings;
+        }
+
+        return $this->process($string, $settings);
+    }
+
+    /**
+     * The cache key for one call, or null when the call cannot be keyed.
+     *
+     * `$arguments` is part of the key because it is part of the answer. It can
+     * also hold a closure — `PARSER_ERRORS_HANDLER` is documented as callable —
+     * and a closure has no stable serialization, so such a call is not cached
+     * rather than sharing a key with a different closure. Rare and correct:
+     * the alternative is two calls that differ only in their handler quietly
+     * getting the same settings.
+     *
+     * @param  array<int, string>   $candidates
+     * @param  array<string, mixed> $arguments
+     */
+    private function settingsCacheKey(array $candidates, bool $useDefaults, array $arguments): ?string
+    {
+        try {
+            return md5(json_encode([$candidates, $useDefaults, $arguments], JSON_THROW_ON_ERROR));
+        } catch (\JsonException) {
+            return null;
+        }
+    }
+
+    /**
+     * Hand one string and its settings to the upstream processor.
+     *
+     * The processor is reused across calls. mundschenk-at/php-typography builds
+     * that for reuse — `get_registry()` caches the registry on the instance and
+     * `process()` takes the settings per call — so constructing one per filter
+     * invocation threw the cache away every time. On a page that filters 1727
+     * strings that was 1727 registry builds.
+     *
+     * Settings are treated as read-only during processing: every reference to
+     * them inside the upstream class is a read. That is what makes one settings
+     * object safe to serve many strings.
+     *
+     * mundschenk-at/php-typography's latest release is v6.7.0 (Nov 2022),
+     * predating PHP 8.4. Its method signatures still use implicitly-nullable
+     * parameters (e.g. `callable $handler = null`), which PHP 8.4+ deprecates.
+     * With display_errors on, those E_DEPRECATED notices are written straight
+     * into the output stream and corrupt the rendered HTML. Suppress only
+     * E_DEPRECATED for the duration of the upstream call, then restore the
+     * previous level so genuine errors elsewhere are unaffected.
+     *
+     * This is purely a stopgap for the unmaintained 2022 dependency — drop it
+     * once php-typography ships the nullable type-hint fix and we bump to it:
+     * https://github.com/mundschenk-at/php-typography/pull/189
+     */
+    private function process(string $string, Settings $settings): string
+    {
         $previousErrorReporting = error_reporting();
         error_reporting($previousErrorReporting & ~E_DEPRECATED);
 
         try {
-            return (new PHP_Typography())->process($string, $settings);
+            return (self::$typography ??= new PHP_Typography())->process($string, $settings);
         } finally {
             error_reporting($previousErrorReporting);
         }
+    }
+
+    /**
+     * Drop everything cached for this instance, and the shared processor.
+     *
+     * A web request never needs it: the process ends before a settings file or
+     * a language table can change. A long-running one does — WP-CLI and
+     * persistent workers run many units of work in one process, and tests need
+     * one test's cache not to answer the next one's question.
+     */
+    public function flushCaches(): void
+    {
+        $this->settingsCache = [];
+        self::$typography = null;
+
+        // The parsed files too, or this clears the settings objects and
+        // rebuilds them from the same stale parse.
+        SettingsLoader::flushMemo();
     }
 
     /**

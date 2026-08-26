@@ -6,6 +6,35 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- `applyTypography()` no longer rebuilds the typography apparatus on every
+  call. It built a fresh `Settings` object, re-read and re-merged every
+  settings layer, and constructed a fresh `PHP_Typography` — which then built a
+  fresh fix registry — once per filtered string. Measured on a five-language
+  WordPress page that filters **1727 strings per render**: 1727 registry
+  builds, 1727 `Settings` constructions, and about a quarter of the page's
+  render time.
+
+  The upstream library was already built for reuse — `get_registry()` caches
+  the registry on the instance and `process()` takes the settings per call — so
+  the fix is to stop throwing that away. One processor per process; `Settings`
+  memoized per instance, keyed by locale candidates, `$use_defaults` and the
+  per-call `$arguments`.
+
+  Measured A/B/A, ten requests each, on the page above: **1.07 s → 0.75 s**,
+  about **-26 %**. The two baselines agreed, and seven pages across five
+  languages render byte-identically with the cache in place.
+
+### Added
+
+- `TypographyExtension::flushCaches()` and `SettingsLoader::flushMemo()`. A web
+  request ends before a settings file can change, so it never needs them; a
+  long-running process — WP-CLI, a persistent worker, a test suite — does.
+  `SettingsLoader` already memoized parsed files with no way to clear them,
+  which predates this change and would have made `flushCaches()` a promise it
+  could not keep.
+
 ## [1.3.0] - 2026-08-05
 
 ### Changed
