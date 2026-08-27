@@ -45,6 +45,26 @@ final class TypographyExtension extends AbstractExtension
     private array $settingsCache = [];
 
     /**
+     * Upper bound on {@see $settingsCache}.
+     *
+     * The cache is keyed partly by caller-supplied `$arguments`, and nothing
+     * stops a call site from passing a value that differs every call — a
+     * threshold, an id, anything JSON-encodable and call-unique. In a request
+     * that would not matter; in a persistent worker, which is the environment
+     * {@see flushCaches()} exists for, it grows for the life of the process.
+     *
+     * Measured on the project this change came from: 358 call sites, every one
+     * of them argument-free, so the live cache holds one entry per locale. The
+     * bound is for the consumer that does not look like that.
+     *
+     * The whole cache is dropped on overflow rather than evicting least-used
+     * entries, because tracking use costs a write on every hit — on the hot
+     * path this cache exists to protect. A rebuild is what the uncached code
+     * did on every call anyway.
+     */
+    private const MAX_CACHED_SETTINGS = 100;
+
+    /**
      * The generation this instance's cache was filled in.
      *
      * A flush is process-wide in its effects — it drops the shared processor
@@ -185,6 +205,10 @@ final class TypographyExtension extends AbstractExtension
         }
 
         if ($cacheKey !== null) {
+            if (count($this->settingsCache) >= self::MAX_CACHED_SETTINGS) {
+                $this->settingsCache = [];
+            }
+
             $this->settingsCache[$cacheKey] = $settings;
         }
 
@@ -303,6 +327,13 @@ final class TypographyExtension extends AbstractExtension
         error_reporting($previousErrorReporting & ~E_DEPRECATED);
 
         try {
+            // `??=` is a check-then-act on process-wide state and is not
+            // atomic. That is deliberate rather than overlooked: under ZTS a
+            // static is per-thread, and where requests interleave as
+            // coroutines rather than threads — Swoole and friends — two of
+            // them can both see null and both construct one. The loser's
+            // instance is simply dropped. The cost is a wasted registry build,
+            // never a wrong answer, because the processor carries no settings.
             return (self::$typography ??= new PHP_Typography())->process($string, $settings);
         } finally {
             error_reporting($previousErrorReporting);

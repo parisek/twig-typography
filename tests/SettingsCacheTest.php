@@ -192,6 +192,40 @@ final class SettingsCacheTest extends TestCase
     }
 
     #[Test]
+    public function the_cache_does_not_grow_without_bound(): void
+    {
+        // $arguments is caller-supplied and part of the key, so a call site
+        // passing a per-call value mints a new entry every time. Harmless in a
+        // request; in a persistent worker -- the environment flushCaches()
+        // exists for -- it would grow for the life of the process.
+        $extension = new TypographyExtension('', static fn(): string => 'cs_CZ');
+
+        for ($i = 0; $i < 250; $i++) {
+            $extension->applyTypography('Řekl "ahoj" dnes.', ['set_min_length_hyphenation' => $i]);
+        }
+
+        $cache = (new \ReflectionProperty(TypographyExtension::class, 'settingsCache'))
+            ->getValue($extension);
+
+        self::assertLessThanOrEqual(100, count($cache));
+    }
+
+    #[Test]
+    public function a_bounded_cache_still_answers_correctly_after_it_overflows(): void
+    {
+        // Dropping the cache must cost a rebuild, never an answer.
+        $extension = new TypographyExtension('', static fn(): string => 'cs_CZ');
+
+        $first = $extension->applyTypography('Řekl "ahoj" dnes.');
+
+        for ($i = 0; $i < 250; $i++) {
+            $extension->applyTypography('x', ['set_min_length_hyphenation' => $i]);
+        }
+
+        self::assertSame($first, $extension->applyTypography('Řekl "ahoj" dnes.'));
+    }
+
+    #[Test]
     public function flushing_one_instance_reaches_the_others(): void
     {
         // A flush is process-wide in its effects: it drops the shared
