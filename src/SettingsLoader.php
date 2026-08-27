@@ -28,6 +28,30 @@ final class SettingsLoader
     private static array $memo = [];
 
     /**
+     * Forget every parsed file.
+     *
+     * The memo above has no expiry, which is right for a request: it ends
+     * before a settings file can change. A process that outlives one — WP-CLI,
+     * a persistent worker, a test suite — needs a way to say so, and without
+     * this {@see \Parisek\Twig\TypographyExtension::flushCaches()} could not
+     * keep its promise: it would clear the settings objects and then rebuild
+     * them from the same stale parse.
+     *
+     * Public only because that sibling has to reach it; PHP has no narrower
+     * visibility for it. **Call `TypographyExtension::flushCaches()` instead.**
+     * This clears the parsed files and nothing else, so on its own it puts the
+     * package back into exactly the split state the generation counter in that
+     * class exists to prevent: files re-read, settings objects still built from
+     * the old ones.
+     *
+     * @internal
+     */
+    public static function flushMemo(): void
+    {
+        self::$memo = [];
+    }
+
+    /**
      * The package's own bundled settings file — house policy plus the
      * per-language tables.
      */
