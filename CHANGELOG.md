@@ -6,6 +6,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-27
+
 ### Changed
 
 - `applyTypography()` no longer rebuilds the typography apparatus on every
