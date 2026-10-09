@@ -122,6 +122,14 @@ PHP-Typography version this package hasn't caught up to) is silently skipped
 rather than fataling the render; `languages` itself is never passed through —
 it's a document-structure key, not a setting.
 
+The package supports PHP-Typography 6.x and 7.x. 7.0 renamed two setters, and
+this package accepts either name on either major:
+
+| 6.x name         | 7.x name           |
+|------------------|--------------------|
+| `set_url_wrap`   | `set_wrap_urls`    |
+| `set_email_wrap` | `set_wrap_emails`  |
+
 ### Merge order
 
 Later layers win on a per-key basis; a layer that doesn't touch a key leaves

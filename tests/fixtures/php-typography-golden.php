@@ -5,7 +5,8 @@ declare(strict_types=1);
 // Golden outputs captured from the pinned mundschenk-at/php-typography release
 // (see PhpTypographyCharacterisationTest). Invisible characters are escaped.
 // Each row: locale (null for none), input, per-call arguments (null means
-// `$use_defaults = false`), expected output.
+// `$use_defaults = false`), expected output on 6.x, and optionally the
+// expected output on 7.x where it intentionally differs.
 
 return [
     'cs quotes dash single-char spacing' => [
@@ -103,6 +104,7 @@ return [
         'Viz https://example.com/a/very/long/path a www.example.org/cesta/k/souboru.html.',
         ['set_url_wrap' => true],
         "Viz https://\u{200B}exam\u{200B}ple\u{200B}.com/\u{200B}a\u{200B}/\u{200B}v\u{200B}e\u{200B}r\u{200B}y\u{200B}/\u{200B}l\u{200B}o\u{200B}n\u{200B}g\u{200B}/path a&nbsp;www\u{200B}.exam\u{200B}ple\u{200B}.org/\u{200B}c\u{200B}e\u{200B}s\u{200B}t\u{200B}a\u{200B}/\u{200B}k\u{200B}/\u{200B}s\u{200B}o\u{200B}u\u{200B}b\u{200B}o\u{200B}r\u{200B}u\u{200B}.html.",
+        "Viz https://\u{200B}exam\u{200B}ple\u{200B}.com/a\u{200B}/very\u{200B}/long/path a&nbsp;www\u{200B}.exam\u{200B}ple\u{200B}.org/cesta\u{200B}/k\u{200B}/souboru.html.",
     ],
     'cs email wrap on' => [
         'cs_CZ',

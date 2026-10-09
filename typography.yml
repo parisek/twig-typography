@@ -40,7 +40,7 @@ set_style_caps: false
 set_style_ampersands: false
 set_style_numbers: false
 set_style_hanging_punctuation: false
-set_initial_quote_tags: false
+set_initial_quote_tags: []
 
 # --- Smart replacements ------------------------------------------------------
 set_smart_math: false            # "5x5" -> "5×5" — collides with price lists and specs
