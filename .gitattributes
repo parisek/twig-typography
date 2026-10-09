@@ -13,4 +13,6 @@
 /docs                export-ignore
 CHANGELOG.md         export-ignore
 AGENTS.md            export-ignore
+CONTRIBUTING.md      export-ignore
+SECURITY.md          export-ignore
 CLAUDE.md            export-ignore

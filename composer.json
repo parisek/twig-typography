@@ -7,6 +7,11 @@
         "typography"
     ],
     "homepage": "https://github.com/parisek/twig-typography",
+    "support": {
+        "issues": "https://github.com/parisek/twig-typography/issues",
+        "source": "https://github.com/parisek/twig-typography",
+        "security": "https://github.com/parisek/twig-typography/blob/main/SECURITY.md"
+    },
     "require": {
         "php": "^8.3",
         "mundschenk-at/php-typography": "^6.0",
