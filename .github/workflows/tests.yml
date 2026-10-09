@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test:
-    name: PHP ${{ matrix.php }} / Twig ${{ matrix.twig }} / Symfony ${{ matrix.symfony }}
+    name: PHP ${{ matrix.php }} / Twig ${{ matrix.twig }} / Symfony ${{ matrix.symfony }}${{ matrix.typography && format(' / PHP-Typography {0}', matrix.typography) || '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,6 +20,8 @@ jobs:
           - { php: '8.3', twig: '^3.27',       symfony: '^7.0', stable: true  }
           - { php: '8.4', twig: '^3.27',       symfony: '^8.0', stable: true  }
           - { php: '8.4', twig: '^4.0@alpha', symfony: '^8.0', stable: false }
+          # The other legs resolve the newest php-typography allowed by composer.json (7.x).
+          - { php: '8.4', twig: '^3.27',       symfony: '^8.0', stable: true, typography: '^6.0' }
     continue-on-error: ${{ !matrix.stable }}
 
     steps:
@@ -39,6 +41,10 @@ jobs:
           composer require --no-update --dev \
             "twig/twig:${{ matrix.twig }}" \
             "symfony/yaml:${{ matrix.symfony }}"
+
+      - name: Pin php-typography major
+        if: matrix.typography
+        run: composer require --no-update "mundschenk-at/php-typography:${{ matrix.typography }}"
 
       - name: Install dependencies
         run: composer update --prefer-dist --no-progress
