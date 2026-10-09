@@ -151,6 +151,12 @@ final class SettingsLoader
      * all resolve to `[]` rather than throwing: a broken resource must degrade
      * the typography, never take the page down.
      *
+     * Impure on purpose: the result depends on the memo, which a caller can
+     * leave stale or reset between two calls. Without this tag PHPStan reuses
+     * the first result for every later call with the same argument.
+     *
+     * @phpstan-impure
+     *
      * @return array<string, mixed>
      */
     public static function file(string $path): array
