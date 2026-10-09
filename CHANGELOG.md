@@ -6,6 +6,36 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- `mundschenk-at/php-typography` constraint widened from `^6.0` to
+  `^6.0 || ^7.0`. 7.0.0 needs PHP >= 8.1, so the PHP ^8.3 floor does not move.
+  Typeset output is identical on 6.7.0 and 7.0.0 for every bundled setting and
+  language table, with one exception: with `set_url_wrap` (opt in, off by
+  default) 7.x inserts fewer break points inside URL paths. It no longer breaks
+  between every letter of a path segment.
+- `typography.yml` now sets `set_initial_quote_tags: []` instead of `false`.
+  7.0 accepts an array only. The result is the same on both majors.
+
+### Fixed
+
+- A settings key that 7.0 renamed no longer breaks the render. 7.0 handles
+  setters through `__call()`, which made an unknown or renamed key throw
+  `BadMethodCallException` instead of being skipped. `set_url_wrap` and
+  `set_email_wrap` now map to `set_wrap_urls` and `set_wrap_emails` on 7.x, and
+  the new names map back on 6.x. Both spellings work on both majors.
+- A number outside the allowed range (for example
+  `set_min_length_hyphenation: 0`) is skipped on 7.x, as 6.x did by falling back
+  to the default, instead of throwing `OutOfRangeException`.
+- `set_initial_quote_tags` still accepts a comma separated string and `false`
+  on 7.x, where the library takes an array only.
+
+### Added
+
+- Golden-output tests (`PhpTypographyCharacterisationTest`) that pin the typeset
+  output for every key in `typography.yml` across Czech, Slovak, English, German,
+  French, Polish and Russian input, on both supported majors.
+
 ## [1.4.0] - 2026-08-27
 
 ### Changed

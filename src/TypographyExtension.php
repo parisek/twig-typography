@@ -170,38 +170,9 @@ final class TypographyExtension extends AbstractExtension
                 continue;
             }
 
-            // An unrecognised key must not fatal the render — e.g. a typo'd
-            // option name, or a key meant for a future PHP-Typography
-            // version this package hasn't caught up to yet.
-            //
-            // method_exists() alone is not enough: it returns true for
-            // protected/private methods too (e.g. `get_style` is a real,
-            // protected Settings method — calling it from here fatals with
-            // "Call to protected method"). is_callable() with this exact
-            // syntax ([$settings, $setting]) resolves visibility from the
-            // *calling scope* (this file, not inside the Settings class), so
-            // it only returns true for methods actually invocable from here
-            // — i.e. public ones. That is exactly the guard we need, with no
-            // extra Reflection object to construct.
-            //
-            // Additionally require a `set_` prefix. Every meaningful
-            // Settings option is exposed as a `set_*` mutator; the class also
-            // exposes public non-`set_` methods (getters, `__construct`,
-            // etc.) that must never be reachable via a settings key. Without
-            // the prefix check, a magic method like `__construct` or a
-            // future public getter would either fatal (wrong arity) or
-            // silently corrupt state instead of being skipped. Requiring the
-            // prefix also makes the contract legible: a settings key maps to
-            // a setter, full stop. The one tradeoff — a hypothetical future
-            // public setter that doesn't follow the `set_` convention would
-            // be silently skipped rather than applied — is the safer failure
-            // mode for a library call we don't control upstream (fail silent,
-            // not fail fatal).
-            if (!str_starts_with($setting, 'set_') || !is_callable([$settings, $setting])) {
-                continue;
-            }
-
-            $settings->{$setting}($value);
+            // An unrecognised key must not fatal the render. See
+            // applySetting() for how that is decided.
+            self::applySetting($settings, $setting, $value);
         }
 
         if ($cacheKey !== null) {
@@ -213,6 +184,87 @@ final class TypographyExtension extends AbstractExtension
         }
 
         return $this->process($string, $settings);
+    }
+
+    /**
+     * Settings that mundschenk-at/php-typography 7.0 renamed. Each name maps to
+     * the other, so a settings file written for either major works on both.
+     */
+    private const RENAMED_SETTINGS = [
+        'set_url_wrap' => 'set_wrap_urls',
+        'set_wrap_urls' => 'set_url_wrap',
+        'set_email_wrap' => 'set_wrap_emails',
+        'set_wrap_emails' => 'set_email_wrap',
+    ];
+
+    /**
+     * Apply one settings key, or skip it when `Settings` has no such setter.
+     *
+     * A settings key maps to a public `set_*` mutator, full stop:
+     *
+     * - The `set_` prefix keeps getters and magic methods (`__construct`) out
+     *   of reach. A future public setter that does not follow the convention is
+     *   skipped, not applied: fail silent, not fatal.
+     * - `is_callable()` called from here resolves visibility from this scope,
+     *   so a protected method such as `get_style` is not callable. `method_exists()`
+     *   would say yes and fatal.
+     * - From 7.0 `Settings` also answers unknown names through `__call()`, which
+     *   makes `is_callable()` true for any name and throws
+     *   `BadMethodCallException` on use. That exception is the "no such setter"
+     *   signal there. On 6.x the same case fails the `is_callable()` check.
+     *
+     * - From 7.0 a number outside the allowed range throws
+     *   `OutOfRangeException`. The key is skipped, which matches what 6.x did.
+     *
+     * When the name is a renamed setting (see {@see RENAMED_SETTINGS}), the
+     * other name is tried next, so one key works on every supported major.
+     */
+    private static function applySetting(Settings $settings, string $setting, mixed $value): void
+    {
+        $names = [$setting];
+        if (isset(self::RENAMED_SETTINGS[$setting])) {
+            $names[] = self::RENAMED_SETTINGS[$setting];
+        }
+
+        foreach ($names as $name) {
+            if (!str_starts_with($name, 'set_') || !is_callable([$settings, $name])) {
+                continue;
+            }
+
+            try {
+                $settings->{$name}(self::normaliseValue($name, $value));
+
+                return;
+            } catch (\BadMethodCallException) {
+                continue;
+            } catch (\OutOfRangeException) {
+                // 6.x replaced an out-of-range number with the setter's default.
+                // 7.0 throws instead. Skipping the key leaves that same default
+                // in place, so a value that rendered on 6.x still renders.
+                return;
+            }
+        }
+    }
+
+    /**
+     * Keep a value that 6.x accepted working on 7.x.
+     *
+     * 6.x took `set_initial_quote_tags` as a comma separated string, and turned
+     * `false` into "no tags". 7.0 accepts an array only, and a project file that
+     * copied the bundled `false` from an older release would otherwise throw a
+     * TypeError and take the page down with it.
+     */
+    private static function normaliseValue(string $setting, mixed $value): mixed
+    {
+        if ($setting !== 'set_initial_quote_tags' || is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value)) {
+            return [];
+        }
+
+        return preg_split('/[^a-z0-9]+/', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     /**
@@ -309,16 +361,16 @@ final class TypographyExtension extends AbstractExtension
      * them inside the upstream class is a read. That is what makes one settings
      * object safe to serve many strings.
      *
-     * mundschenk-at/php-typography's latest release is v6.7.0 (Nov 2022),
-     * predating PHP 8.4. Its method signatures still use implicitly-nullable
-     * parameters (e.g. `callable $handler = null`), which PHP 8.4+ deprecates.
-     * With display_errors on, those E_DEPRECATED notices are written straight
-     * into the output stream and corrupt the rendered HTML. Suppress only
+     * mundschenk-at/php-typography 6.7.0 (Nov 2022) predates PHP 8.4. Its
+     * method signatures still use implicitly-nullable parameters (e.g.
+     * `callable $handler = null`), which PHP 8.4+ deprecates. With
+     * display_errors on, those E_DEPRECATED notices are written straight into
+     * the output stream and corrupt the rendered HTML. Suppress only
      * E_DEPRECATED for the duration of the upstream call, then restore the
      * previous level so genuine errors elsewhere are unaffected.
      *
-     * This is purely a stopgap for the unmaintained 2022 dependency — drop it
-     * once php-typography ships the nullable type-hint fix and we bump to it:
+     * 7.0 fixed the signatures, so this only matters while ^6.0 is still
+     * allowed by composer.json. Drop it when the constraint becomes ^7.0 only:
      * https://github.com/mundschenk-at/php-typography/pull/189
      */
     private function process(string $string, Settings $settings): string

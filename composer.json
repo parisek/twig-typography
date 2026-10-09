@@ -14,7 +14,7 @@
     },
     "require": {
         "php": "^8.3",
-        "mundschenk-at/php-typography": "^6.0",
+        "mundschenk-at/php-typography": "^6.0 || ^7.0",
         "symfony/yaml": "^6.0 || ^7.0 || ^8.0",
         "twig/twig": "^3.27 || ^4.0"
     },

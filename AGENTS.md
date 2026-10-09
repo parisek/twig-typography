@@ -20,7 +20,7 @@ A Twig extension exposing one filter, `|typography`, that wraps [`mundschenk-at/
 - `src/SettingsLoader.php` — all filesystem access; splits a parsed settings document into its global section and `languages:` map.
 - `src/LocaleResolver.php` — pure, I/O-free locale → candidate-tag ordering (`de_CH` → `de-CH`, `de`).
 - `typography.yml` — bundled house policy + the thirteen per-language tables, under `languages:`. Applied on every render regardless of what the consumer passes. A project's own `$config` (file or array) uses the same shape.
-- `tests/` — PHPUnit 11/12. `TypographyExtensionTest.php`, `LanguageTableTest.php`, `SettingsLoaderTest.php`, `LocaleResolverTest.php` + `tests/fixtures/` (sample configs).
+- `tests/` — PHPUnit 11/12. `PhpTypographyCharacterisationTest.php` (golden output in `tests/fixtures/php-typography-golden.php`; add a 5th row element for an intended 7.x difference), `TypographyExtensionTest.php`, `LanguageTableTest.php`, `SettingsLoaderTest.php`, `LocaleResolverTest.php` + `tests/fixtures/` (sample configs).
 - `.github/workflows/tests.yml` + `dependency-review.yml` (`release-stamp.yml` + `release.yml` cover releases, see below).
 - `docs/adr/` may be kept under `docs/` — `.gitignore` ignores `/docs/*` except `!/docs/adr/`. `.gitattributes` excludes `/docs` from the published Composer archive either way.
 
@@ -35,7 +35,7 @@ The bundled `typography.yml` house policy applies on every render regardless of 
 
 `$locale_resolver`: a zero-arg callable returning the active locale (e.g. `cs_CZ`); omitting it disables the per-language layer.
 
-PHP ^8.3. Twig ^3.27 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI). Symfony YAML 6/7/8.
+PHP ^8.3. `mundschenk-at/php-typography` ^6.0 || ^7.0 (7.x renamed `set_url_wrap` and `set_email_wrap`; `TypographyExtension::applySetting()` maps both ways). Twig ^3.27 || ^4.0 (forward-compat to Twig 4 alpha; signal-only in CI). Symfony YAML 6/7/8.
 
 ## Commands
 
@@ -61,13 +61,16 @@ composer validate --strict
 
 ## CI matrix
 
-The `test` job in `.github/workflows/tests.yml` runs a 3-leg PHP/Twig/Symfony matrix (two more jobs, `composer` hygiene and `cs`, run alongside it — not part of this matrix):
+The `test` job in `.github/workflows/tests.yml` runs a PHP/Twig/Symfony (and php-typography) matrix (two more jobs, `composer` hygiene and `cs`, run alongside it — not part of this matrix):
 
 | PHP | Twig | Symfony | Required |
 |---|---|---|---|
 | 8.3 | ^3.27 | ^7.0 | yes |
 | 8.4 | ^3.27 | ^8.0 | yes |
 | 8.4 | ^4.0@alpha | ^8.0 | **signal-only** (`continue-on-error: true`) |
+| 8.4 | ^3.27 | ^8.0 | yes, with `mundschenk-at/php-typography` pinned to `^6.0` |
+
+The first three legs resolve the newest php-typography that `composer.json` allows (7.x). The fourth leg keeps 6.x covered. The same golden tests in `tests/PhpTypographyCharacterisationTest.php` run on both majors.
 
 The Twig 4 alpha job exists to catch upstream breaks early. Don't promote it to required until Twig 4 stable lands.
 

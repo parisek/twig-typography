@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Parisek\Twig\Tests;
 
 use Parisek\Twig\TypographyExtension;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Twig\TwigFilter;
@@ -446,6 +447,79 @@ final class TypographyExtensionTest extends TestCase
 
         self::assertStringContainsString('“hi”', strip_tags($result));
         self::assertStringNotContainsString('«', $result);
+    }
+
+    /**
+     * php-typography 7.0 renamed these setters; 6.x only has the old names.
+     * A settings file written for either must work on either.
+     *
+     * @return array<string, array{string, string, string, string}>
+     */
+    public static function renamedWrapSettings(): array
+    {
+        return [
+            'url' => ['set_url_wrap', 'set_wrap_urls', 'See https://example.com/a/very/long/path today.', "\u{200B}"],
+            'email' => ['set_email_wrap', 'set_wrap_emails', 'Write to jan.novak@example.com today.', "\u{200B}"],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('renamedWrapSettings')]
+    public function a_wrap_setting_works_under_its_old_and_its_new_name(
+        string $oldName,
+        string $newName,
+        string $input,
+        string $zeroWidthSpace,
+    ): void {
+        $extension = new TypographyExtension();
+
+        $off = $extension->applyTypography($input);
+        $viaOldName = $extension->applyTypography($input, [$oldName => true]);
+        $viaNewName = $extension->applyTypography($input, [$newName => true]);
+
+        self::assertStringNotContainsString($zeroWidthSpace, $off);
+        self::assertStringContainsString($zeroWidthSpace, $viaOldName);
+        self::assertSame($viaOldName, $viaNewName);
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function legacyInitialQuoteTags(): array
+    {
+        return [
+            'false' => [false],
+            'null' => [null],
+            'empty string' => [''],
+            'comma list' => ['p, h2'],
+            'array' => [['p', 'h2']],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('legacyInitialQuoteTags')]
+    public function initial_quote_tags_accept_every_shape_that_6x_accepted(mixed $tags): void
+    {
+        $extension = new TypographyExtension();
+
+        $result = $extension->applyTypography('<p>"Quote" here.</p>', ['set_initial_quote_tags' => $tags]);
+
+        self::assertStringContainsString('Quote', $result);
+    }
+
+    #[Test]
+    public function an_out_of_range_number_falls_back_to_the_default_instead_of_fataling(): void
+    {
+        // 6.x replaced these with the setter's default. 7.0 throws
+        // OutOfRangeException. A page must render the same on both.
+        $extension = new TypographyExtension();
+        $input = 'Nejneobhospodařovávatelnější zařízení.';
+        $hyphenated = ['set_hyphenation' => true, 'set_hyphenation_language' => 'cs'];
+
+        $default = $extension->applyTypography($input, $hyphenated);
+        $outOfRange = $extension->applyTypography($input, $hyphenated + ['set_min_length_hyphenation' => 0]);
+
+        self::assertSame($default, $outOfRange);
     }
 
     #[Test]
