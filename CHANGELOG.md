@@ -14,6 +14,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   language table, with one exception: with `set_url_wrap` (opt in, off by
   default) 7.x inserts fewer break points inside URL paths. It no longer breaks
   between every letter of a path segment.
+- Composer now resolves PHP-Typography 7.x on a fresh install, because the range
+  allows both majors and takes the newest. 7.x checks setting types strictly:
+  a boolean setter given `1` or `"x"`, or an array setter given a scalar, throws
+  `TypeError`, where 6.x converted the value. A project that passes its own
+  settings must use real booleans and arrays. A project that needs 6.x pins
+  `mundschenk-at/php-typography` to `^6.0`.
 - `typography.yml` now sets `set_initial_quote_tags: []` instead of `false`.
   7.0 accepts an array only. The result is the same on both majors.
 
